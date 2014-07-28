@@ -1,0 +1,12 @@
+* Tools
+
+Some tools that I wrote.
+
+** pileupcvg.c
+
+Take as input a bam file and a chromosome id and outputs the coverage at each
+nucleotide position in the chromosome.
+
+** resample.c
+
+Reads a table from standard input and resamples it into bins.
