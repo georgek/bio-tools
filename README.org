@@ -10,3 +10,7 @@ nucleotide position in the chromosome.
 ** resample.c
 
 Reads a table from standard input and resamples it into bins.
+
+** average.py
+
+Reads table from standard input and calculates average (mean, median or mode)
