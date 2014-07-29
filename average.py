@@ -55,10 +55,11 @@ parser.set_defaults(avg_type="mean")
 args = parser.parse_args()
 # ----- end command line parsing -----
 
+dl = args.delimiter.decode("string_escape")
 values = []
 for line in sys.stdin:
     if len(line) > 1:
-        values.append(float(line[:-1].split(args.delimiter.decode("string_escape"))[args.column_number - 1]))
+        values.append(float(line[:-1].split(dl)[args.column_number - 1]))
 
 if len(values) == 0:
     print 0
