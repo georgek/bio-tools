@@ -17,9 +17,7 @@ typedef struct pos_data {
 static int fetch_func(const bam1_t *b, void *data)
 {
      bam_plbuf_t *buf = data;
-     if (b->core.flag & BAM_FPROPER_PAIR) {
-          bam_plbuf_push(b, buf);
-     }
+     bam_plbuf_push(b, buf);
      return 0;
 }
 
