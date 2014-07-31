@@ -25,8 +25,8 @@ static int fetch_func(const bam1_t *b, void *data)
 
 static int bambasetable[] = {-1, 'a', 'c', -1, 'g', -1, -1, -1, 't'};
 /* callback for bam_plbuf_init() */
-static int pileup_func(uint32_t tid, uint32_t pos, int n,
-                       const bam_pileup1_t *pl, void *data)
+static int pileup_func_base(uint32_t tid, uint32_t pos, int n,
+                            const bam_pileup1_t *pl, void *data)
 {
      PosData *p = data;
      size_t i;
@@ -36,6 +36,40 @@ static int pileup_func(uint32_t tid, uint32_t pos, int n,
           for (i = 0; i < n; ++i) {
                posbase = bam1_seqi(bam1_seq(pl[i].b), pl[i].qpos);
                if (!pl[i].is_del && p->base == bambasetable[posbase]) {
+                    samwrite(p->output, pl[i].b);
+               }
+          }
+     }
+
+     return 0;
+}
+
+static int pileup_func_del(uint32_t tid, uint32_t pos, int n,
+                           const bam_pileup1_t *pl, void *data)
+{
+     PosData *p = data;
+     size_t i;
+
+     if (p->tid == tid && p->pos == pos) {
+          for (i = 0; i < n; ++i) {
+               if (pl[i].is_del) {
+                    samwrite(p->output, pl[i].b);
+               }
+          }
+     }
+
+     return 0;
+}
+
+static int pileup_func_ins(uint32_t tid, uint32_t pos, int n,
+                           const bam_pileup1_t *pl, void *data)
+{
+     PosData *p = data;
+     size_t i;
+
+     if (p->tid == tid && p->pos == pos) {
+          for (i = 0; i < n; ++i) {
+               if (pl[i].indel > 0) {
                     samwrite(p->output, pl[i].b);
                }
           }
@@ -94,7 +128,17 @@ int main(int argc, char *argv[])
           exit(-1);
      }
 
-     buf = bam_plbuf_init(&pileup_func, &p);
+     switch(p.base) {
+     case 'i':
+          buf = bam_plbuf_init(&pileup_func_ins, &p);
+          break;
+     case 'd':
+          buf = bam_plbuf_init(&pileup_func_del, &p);
+          break;
+     default:
+          buf = bam_plbuf_init(&pileup_func_base, &p);
+          break;
+     }
      /* disable maximum pileup depth */
      bam_plp_set_maxcnt(buf->iter, INT_MAX);
      bam_fetch(bamin->x.bam, bamidx,
