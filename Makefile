@@ -1,7 +1,7 @@
 CC = gcc --std=c99
-CPPFLAGS = -I/tgac/software/production/samtools/0.1.18/x86_64/include
+CPPFLAGS = -I$(HOME)/include
 CFLAGS = -pedantic -Wall -O2 -g
-LDFLAGS = -L/tgac/software/production/samtools/0.1.18/x86_64/lib
+LDFLAGS = -L$(HOME)/lib
 LDLIBS = -pthread -lbam -lz
 
 PROGS = bambaseatpos
