@@ -39,6 +39,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument("column_number", type=int, help="The column number.")
 
 parser.add_argument("-d", "--delimiter", default='\t')
+parser.add_argument("-f", "--default", type=float, default=0.0)
 
 avg_type = parser.add_mutually_exclusive_group()
 avg_type.add_argument("-a", "--mean",
@@ -59,7 +60,10 @@ dl = args.delimiter.decode("string_escape")
 values = []
 for line in sys.stdin:
     if len(line) > 1:
-        values.append(float(line[:-1].split(dl)[args.column_number - 1]))
+        try:
+            values.append(float(line[:-1].split(dl)[args.column_number - 1]))
+        except IndexError as e:
+            values.append(args.default)
 
 if len(values) == 0:
     print 0
