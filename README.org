@@ -14,3 +14,8 @@ Reads a table from standard input and resamples it into bins.
 ** average.py
 
 Reads table from standard input and calculates average (mean, median or mode)
+
+** bambaseatpos.c
+
+Prints in SAM format those alignments from a BAM file which contain a given
+base (or indel) at a given reference position
