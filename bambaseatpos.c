@@ -6,12 +6,12 @@
 #include <bam/bam.h>
 #include <bam/sam.h>
 
-typedef struct pos_data {
+struct pos_data {
      uint32_t tid;
      uint32_t pos;
      char base;
      samfile_t *output;
-} PosData;
+};
 
 /* callback for bam_fetch() */
 static int fetch_func(const bam1_t *b, void *data)
@@ -26,7 +26,7 @@ static int bambasetable[] = {-1, 'a', 'c', -1, 'g', -1, -1, -1, 't'};
 static int pileup_func_base(uint32_t tid, uint32_t pos, int n,
                             const bam_pileup1_t *pl, void *data)
 {
-     PosData *p = data;
+     struct pos_data *p = data;
      size_t i;
      int posbase;
 
@@ -45,7 +45,7 @@ static int pileup_func_base(uint32_t tid, uint32_t pos, int n,
 static int pileup_func_del(uint32_t tid, uint32_t pos, int n,
                            const bam_pileup1_t *pl, void *data)
 {
-     PosData *p = data;
+     struct pos_data *p = data;
      size_t i;
 
      if (p->tid == tid && p->pos == pos) {
@@ -62,7 +62,7 @@ static int pileup_func_del(uint32_t tid, uint32_t pos, int n,
 static int pileup_func_ins(uint32_t tid, uint32_t pos, int n,
                            const bam_pileup1_t *pl, void *data)
 {
-     PosData *p = data;
+     struct pos_data *p = data;
      size_t i;
 
      if (p->tid == tid && p->pos == pos) {
@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 {
      char *progname;
      char *bamfilename;
-     PosData p;
+     struct pos_data p;
      char *outputname;
 
      samfile_t *bamin;
