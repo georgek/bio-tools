@@ -4,7 +4,7 @@ CFLAGS = -pedantic -Wall -O2 -g
 LDFLAGS = -L$(HOME)/lib
 LDLIBS = -pthread -lbam -lz
 
-PROGS = bambaseatpos
+PROGS = bambaseatpos resample pileupcvg
 
 all: $(PROGS)
 
