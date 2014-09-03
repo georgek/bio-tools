@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 # reads a sam file sorted by name and outputs paired fastq files
+# pipe in a sam file, e.g. samtools view aln.bam
 
 import sys
 import os.path
