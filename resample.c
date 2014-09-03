@@ -20,8 +20,7 @@ int main(int argc, char *argv[])
           bin_size = strtoul(argv[0], NULL, 10);
      }
 
-     while (!feof(stdin)) {
-          scanf("%lf\t%lf\n ", &current_x, &current_y);
+     while (scanf("%lf\t%lf\n ", &current_x, &current_y) != EOF) {
           nlines++;
           bin_x *= (double)(nlines-1)/nlines;
           bin_x += current_x/nlines;
