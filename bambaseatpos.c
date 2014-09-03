@@ -125,6 +125,9 @@ int main(int argc, char *argv[])
           fprintf(stderr, "Error opening output %s\n", outputname);
           exit(-1);
      }
+     if (p.output->type == 0) {
+          fprintf(p.output->x.tamw, "%s", header->text);
+     }
 
      switch(p.base) {
      case 'i':
