@@ -4,19 +4,37 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <limits.h>
+#include <ctype.h>
 
 #include <bam.h>
 
 #include <htslib/vcf.h>
 #include <htslib/sam.h>
 
+typedef enum {
+     VAR_SNP,
+     VAR_INS,
+     VAR_DEL
+} var_t;
+
 struct pos_data {
      uint32_t tid;
      uint32_t pos;
-     char base;
+     var_t variant_type;
+     int var_len;
+     char *reference;
+     char *variant;
      bam_hdr_t *header;
      samFile *output;
 };
+
+static inline void strtolower(char *s) 
+{
+     while (*s != '\0') {
+          *s = tolower(*s);
+          s++;
+     }
+}
 
 /* callback for bam_fetch() */
 static int fetch_func(const bam1_t *b, void *data)
@@ -28,8 +46,8 @@ static int fetch_func(const bam1_t *b, void *data)
 
 static int bambasetable[] = {-1, 'a', 'c', -1, 'g', -1, -1, -1, 't'};
 /* callback for bam_plbuf_init() */
-static int pileup_func(uint32_t tid, uint32_t pos, int n,
-                       const bam_pileup1_t *pl, void *data)
+static int pileup_func_snp(uint32_t tid, uint32_t pos, int n,
+                           const bam_pileup1_t *pl, void *data)
 {
      struct pos_data *p = data;
      size_t i;
@@ -38,7 +56,8 @@ static int pileup_func(uint32_t tid, uint32_t pos, int n,
      if (p->tid == tid && p->pos == pos) {
           for (i = 0; i < n; ++i) {
                posbase = bam1_seqi(bam1_seq(pl[i].b), pl[i].qpos);
-               if (!pl[i].is_del && p->base == bambasetable[posbase]) {
+               /* printf("%c, %c\n", bambasetable[posbase], p->variant[0]); */
+               if (!pl[i].is_del && p->variant[0] == bambasetable[posbase]) {
                     sam_write1(p->output, p->header, pl[i].b);
                }
           }
@@ -80,9 +99,6 @@ int main(int argc, char *argv[])
           bamfilename = argv[1];
           outputname = argv[2];
      }
-     p.tid = 0;
-     p.pos = 0;
-     p.base = 'a';
 
      /* try to open vcf file */
      vcfin = vcf_open(vcffilename, "r");
@@ -115,51 +131,80 @@ int main(int argc, char *argv[])
      sam_hdr_write(p.output, p.header);
 
      while (bcf_read(vcfin, vcfheader, &vcfread) >= 0) {
-          printf("chr: %d, pos: %d, len: %d, qual: %f\n",
-                 vcfread.rid, vcfread.pos, vcfread.rlen, vcfread.qual);
-          printf("n_info: %u, n_allele: %u, n_fmt: %u, n_sample: %u\n",
-                 vcfread.n_info, vcfread.n_allele,
-                 vcfread.n_fmt, vcfread.n_sample);
+          /* printf("chr: %d, pos: %d, len: %d, qual: %f\n", */
+          /*        vcfread.rid, vcfread.pos, vcfread.rlen, vcfread.qual); */
+          /* printf("n_info: %u, n_allele: %u, n_fmt: %u, n_sample: %u\n", */
+          /*        vcfread.n_info, vcfread.n_allele, */
+          /*        vcfread.n_fmt, vcfread.n_sample); */
+          /* bcf_unpack(&vcfread, BCF_UN_STR); */
+          /* printf("ref: %s\n", vcfread.d.allele[0]); */
+          /* for (int i = 1; i < vcfread.n_allele; i++) { */
+          /*      printf("var: %s\n", vcfread.d.allele[i]); */
+          /* } */
+          /* bcf_get_variant_types(&vcfread); */
+          /* for (int i = 1; i < vcfread.n_allele; i++) { */
+          /*      switch (vcfread.d.var[i].type) { */
+          /*      case VCF_REF: */
+          /*           printf("%d ref ", i); */
+          /*           break; */
+          /*      case VCF_SNP: */
+          /*           printf("%d snp ", i); */
+          /*           break; */
+          /*      case VCF_MNP: */
+          /*           printf("%d mnp ", i); */
+          /*           break; */
+          /*      case VCF_INDEL: */
+          /*           printf("%d indel ", i); */
+          /*           break; */
+          /*      case VCF_OTHER: */
+          /*           printf("%d other ", i); */
+          /*           break; */
+          /*      default: */
+          /*           printf("%d unrec (%d) ", i, */
+          /*                  bcf_get_variant_type(&vcfread, i)); */
+          /*      } */
+          /*      printf("bases: %d\n", vcfread.d.var[i].n); */
+          /* } */
+          /* printf("\n"); */
+
+          p.tid = vcfread.rid;
+          p.pos = vcfread.pos;
           bcf_unpack(&vcfread, BCF_UN_STR);
-          printf("ref: %s\n", vcfread.d.allele[0]);
-          for (int i = 1; i < vcfread.n_allele; i++) {
-               printf("var: %s\n", vcfread.d.allele[i]);
-          }
           bcf_get_variant_types(&vcfread);
+          p.reference = vcfread.d.allele[0];
+          strtolower(p.reference);
           for (int i = 1; i < vcfread.n_allele; i++) {
-               switch (vcfread.d.var[i].type) {
-               case VCF_REF:
-                    printf("%d ref ", i);
-                    break;
-               case VCF_SNP:
-                    printf("%d snp ", i);
-                    break;
-               case VCF_MNP:
-                    printf("%d mnp ", i);
-                    break;
-               case VCF_INDEL:
-                    printf("%d indel ", i);
-                    break;
-               case VCF_OTHER:
-                    printf("%d other ", i);
-                    break;
-               default:
-                    printf("%d unrec (%d) ", i,
-                           bcf_get_variant_type(&vcfread, i));
+               if (vcfread.d.var[i].type == VCF_SNP) {
+                    p.variant_type = VAR_SNP;
                }
-               printf("bases: %d\n", vcfread.d.var[i].n);
+               else if (vcfread.d.var[i].type == VCF_INDEL) {
+                    if (vcfread.d.var[i].n < 0) {
+                         p.variant_type = VAR_DEL;
+                    }
+                    else {
+                         p.variant_type = VAR_INS;
+                    }
+               }
+               else {
+                    continue;
+               }
+               p.variant = vcfread.d.allele[i];
+               strtolower(p.variant);
+
+               /* do pileup for this variant */
+               if (p.variant_type == VAR_SNP) {
+                    buf = bam_plbuf_init(&pileup_func_snp, &p);
+                    bam_plp_set_maxcnt(buf->iter, INT_MAX);
+                    bam_fetch(bamin->fp.bgzf, bamidx,
+                              p.tid, p.pos, p.pos + 1,
+                              buf, &fetch_func);
+                    bam_plbuf_push(NULL, buf);    /* finish pileup */
+                    bam_plbuf_destroy(buf);
+               }
           }
-          printf("\n");
+          /* might need to free the stuff in the unpacked vcf read here */
      }
-
-     buf = bam_plbuf_init(&pileup_func, &p);
-     bam_plp_set_maxcnt(buf->iter, INT_MAX);
-     bam_fetch(bamin->fp.bgzf, bamidx,
-               p.tid, p.pos, p.pos + 1,
-               buf, &fetch_func);
-     bam_plbuf_push(NULL, buf);    /* finish pileup */
-
-     bam_plbuf_destroy(buf);
+     
      sam_close(p.output);
      bam_hdr_destroy(p.header);
      hts_idx_destroy(bamidx);
