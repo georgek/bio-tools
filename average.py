@@ -5,8 +5,6 @@
 import sys
 import os.path
 import argparse
-from collections import namedtuple
-import sqlite3
 
 def mean(list):
     return sum(list)/len(list)
