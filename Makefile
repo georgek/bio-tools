@@ -5,7 +5,7 @@ LDFLAGS += -L$(HOME)/lib
 LDLIBS += -pthread -lz -lhts
 SAMTOOLSDIR ?= $(HOME)/src/samtools
 
-PROGS = bambaseatpos resample pileupcvg
+PROGS = bambaseatpos resample pileupcvg consensus
 
 all: $(PROGS)
 
