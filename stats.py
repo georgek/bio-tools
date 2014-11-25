@@ -32,6 +32,14 @@ def mode(list):
             currentcount = 1
     return mode if currentcount < modecount else current
 
+def variance(list):
+    lmean = mean(list)
+    sqdiffs = map(lambda x: pow(x - lmean, 2), list)
+    return mean(sqdiffs)
+
+def stddev(list):
+    return pow(variance(list), 0.5)
+
 def formatfloat(number, width, precision):
     return "{0:{1}.{2}f}".format(number,
                                  width if width else 0,
@@ -59,7 +67,7 @@ for line in sys.stdin:
         except IndexError as e:
             values.append(args.default)
 
-fmt_re = re.compile("%([0-9]+)?(?:.([0-9]+))?([aeomM])")
+fmt_re = re.compile("%([0-9]+)?(?:.([0-9]+))?([aeomMvsS])")
 chunks = fmt_re.split(fmt_str)
 sys.stdout.write(chunks[0])
 i = 1
@@ -75,6 +83,12 @@ while i < len(chunks):
         val = min(values)
     elif type == 'M':
         val = max(values)
+    elif type == 'v':
+        val = variance(values)
+    elif type == 's':
+        val = stddev(values)
+    elif type == 'S':
+        val = sum(values)
     else:
         sys.stderr.write("Unrecognised type {:s}.".format(type))
     sys.stdout.write(formatfloat(val, chunks[i], chunks[i+1]))
