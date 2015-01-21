@@ -6,17 +6,22 @@ import sys
 import argparse
 import re
 
+
 def mean(list):
     if len(list) > 0:
         return sum(list)/len(list)
     else:
         return 0
 
+
 def median(list):
-    if len(list)%2:
+    if len(list) == 0:
+        return 0
+    elif len(list) % 2:
         return sorted(list)[len(list)/2]
     else:
         return (sorted(list)[len(list)/2-1]+sorted(list)[len(list)/2])/2
+
 
 def mode(list):
     mode = None
@@ -34,18 +39,22 @@ def mode(list):
             currentcount = 1
     return mode if currentcount < modecount else current
 
+
 def variance(list):
     lmean = mean(list)
     sqdiffs = map(lambda x: pow(x - lmean, 2), list)
     return mean(sqdiffs)
 
+
 def stddev(list):
     return pow(variance(list), 0.5)
+
 
 def formatfloat(number, width, precision):
     return "{0:{1}.{2}f}".format(number,
                                  width if width else 0,
                                  precision if precision else 2)
+
 
 # ----- command line parsing -----
 parser = argparse.ArgumentParser(
@@ -75,7 +84,9 @@ sys.stdout.write(chunks[0])
 i = 1
 while i < len(chunks):
     type = chunks[i+2]
-    if type == 'a':
+    if len(values) == 0:
+        val = 0
+    elif type == 'a':
         val = mean(values)
     elif type == 'e':
         val = median(values)
