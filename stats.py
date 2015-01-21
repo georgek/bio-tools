@@ -3,12 +3,14 @@
 # gives average of selected column
 
 import sys
-import os.path
 import argparse
 import re
 
 def mean(list):
-    return sum(list)/len(list)
+    if len(list) > 0:
+        return sum(list)/len(list)
+    else:
+        return 0
 
 def median(list):
     if len(list)%2:
