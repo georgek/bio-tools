@@ -19,3 +19,4 @@ for line in fasta:
         length = 0
     else:
         length += len(line)-1
+print length
