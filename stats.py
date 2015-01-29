@@ -68,22 +68,36 @@ def formatfloat(number, width, precision):
 # ----- command line parsing -----
 parser = argparse.ArgumentParser(
     description="Calculates stats for column and prints according to format string.")
-parser.add_argument("column_number", type=int, help="The column number.")
-parser.add_argument("format_string", type=str, help="Format string.")
+parser.add_argument("-c", "--column", type=int,
+                    help="The column number.")
 
-parser.add_argument("-d", "--delimiter", default='\t')
-parser.add_argument("-f", "--default", type=float, default=0.0)
+parser.add_argument("-f", "--format", type=str,
+                    help="Format string.")
+
+parser.add_argument("-d", "--delimiter", default='\t',
+                    help="Column delmiter.")
+parser.add_argument("--default", type=float, default=0.0,
+                    help="Default value for missing values.")
 
 args = parser.parse_args()
 # ----- end command line parsing -----
 
-fmt_str = args.format_string.decode("string_escape")
+if args.format:
+    fmt_str = args.format.decode("string_escape")
+else:
+    fmt_str = "Mean: %a, median: %e, mode: %o, min: %m, max: %M, stdev: %s\n"
+
+if args.column:
+    col = args.column
+else:
+    col = 1
+
 dl = args.delimiter.decode("string_escape")
 values = []
 for line in sys.stdin:
     if len(line) > 1:
         try:
-            values.append(float(line[:-1].split(dl)[args.column_number - 1]))
+            values.append(float(line[:-1].split(dl)[col - 1]))
         except IndexError as e:
             values.append(args.default)
 
