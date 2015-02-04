@@ -74,7 +74,7 @@ parser.add_argument("-c", "--column", type=int,
 parser.add_argument("-f", "--format", type=str,
                     help="Format string.")
 
-parser.add_argument("-d", "--delimiter", default='\t',
+parser.add_argument("-d", "--delimiter", default=None,
                     help="Column delmiter.")
 parser.add_argument("--default", type=float, default=0.0,
                     help="Default value for missing values.")
@@ -92,7 +92,10 @@ if args.column:
 else:
     col = 1
 
-dl = args.delimiter.decode("string_escape")
+if args.delimiter:
+    dl = args.delimiter.decode("string_escape")
+else:
+    dl = None
 values = []
 for line in sys.stdin:
     if len(line) > 1:
