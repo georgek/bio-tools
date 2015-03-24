@@ -19,7 +19,7 @@ fasta_file = open(args.fasta_file)
 printing = False
 for line in fasta_file:
     if line[0] == '>':
-        if args.prefix in line[1:-1]:
+        if args.string in line[1:-1]:
             printing = True
             sys.stdout.write(line)
         else:
