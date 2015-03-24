@@ -9,7 +9,7 @@ import re
 parser = argparse.ArgumentParser(
     description="Prints fasta containing only the given set of sequences.")
 parser.add_argument("fasta_file", type=str, help="FASTA file.")
-parser.add_argument("string", type=str, help="String that names must contain.")
+parser.add_argument("prefix", type=str, help="Prefix for names.")
 
 args = parser.parse_args()
 # ----- end command line parsing -----
@@ -19,7 +19,7 @@ fasta_file = open(args.fasta_file)
 printing = False
 for line in fasta_file:
     if line[0] == '>':
-        if args.string in line[1:-1]:
+        if line[1:-1].startswith(args.prefix):
             printing = True
             sys.stdout.write(line)
         else:
