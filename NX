@@ -1,0 +1,13 @@
+#!/bin/bash
+# calculates the N value for a given fasta file and value for N
+
+fasta=$1
+N=$2
+
+sizes=$(~/code/tools/fasta-lengths.py ${fasta} | sort -nr)
+
+sum=$(echo "${sizes}" | awk '{s+=$1; n+=1} END {print s}')
+
+echo "${sizes}" \
+  | awk -v OFS="\t" -v sum="${sum}" -v N="${N}" \
+  'BEGIN {s=0} s < sum*(N/100) {s+=$1; n+=1; c=$1} END {print c, n}'
