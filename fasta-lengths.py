@@ -14,9 +14,9 @@ fasta = open(args.file)
 length = None
 for line in fasta:
     if line[0] == '>':
-        name = line[1:-1]
         if length:
             print "{:s}\t{:d}".format(name, length)
+        name = line[1:-1]
         length = 0
     else:
         length += len(line)-1
