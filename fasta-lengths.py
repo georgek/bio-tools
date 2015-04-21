@@ -14,10 +14,11 @@ fasta = open(args.file)
 length = None
 for line in fasta:
     if line[0] == '>':
+        name = line[1:-1]
         if length:
-            print length
+            print "{:s}\t{:d}".format(name, length)
         length = 0
     else:
         length += len(line)-1
 if length:
-    print length
+    print "{:s}\t{:d}".format(name, length)
