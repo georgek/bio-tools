@@ -60,9 +60,9 @@ def N50(list):
 
 
 def formatfloat(number, width, precision):
-    return "{0:{1}.{2}f}".format(number,
-                                 width if width else 0,
-                                 precision if precision else 2)
+    return "{0:{1},.{2}f}".format(number,
+                                  width if width else 0,
+                                  precision if precision else 2)
 
 
 # ----- command line parsing -----
