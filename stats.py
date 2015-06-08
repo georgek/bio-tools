@@ -113,7 +113,7 @@ for line in sys.stdin:
         except IndexError as e:
             values.append(args.default)
 
-fmt_re = re.compile("%([0-9]+)?(?:.([0-9]+))?([aeomMvsSN])")
+fmt_re = re.compile("%([0-9]+)?(?:.([0-9]+))?([naeomMvsSN])")
 chunks = fmt_re.split(fmt_str)
 sys.stdout.write(chunks[0])
 i = 1
@@ -121,6 +121,8 @@ while i < len(chunks):
     type = chunks[i+2]
     if len(values) == 0:
         val = 0
+    elif type == 'n':
+        val = len(values)
     elif type == 'a':
         val = mean(values)
     elif type == 'e':
