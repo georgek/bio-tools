@@ -59,10 +59,14 @@ def N50(list):
             return item
 
 
-def formatfloat(number, width, precision):
-    return "{0:{1},.{2}f}".format(number,
-                                  width if width else 0,
-                                  precision if precision else 2)
+def formatfloat(number, width, precision, separators):
+    if separators:
+        fmt = "{0:{1},.{2}f}"
+    else:
+        fmt = "{0:{1}.{2}f}"
+    return fmt.format(number,
+                      width if width else 0,
+                      precision if precision else 2)
 
 
 # ----- command line parsing -----
@@ -76,6 +80,11 @@ parser.add_argument("-f", "--format", type=str,
 
 parser.add_argument("-d", "--delimiter", default=None,
                     help="Column delmiter.")
+
+parser.add_argument("-t", "--thousand_separators", dest="seps", action="store_true",
+                    help="Print numbers with thousand separators.")
+parser.set_defaults(seps=False)
+
 parser.add_argument("--default", type=float, default=0.0,
                     help="Default value for missing values.")
 
@@ -132,6 +141,6 @@ while i < len(chunks):
         val = N50(values)
     else:
         sys.stderr.write("Unrecognised type {:s}.".format(type))
-    sys.stdout.write(formatfloat(val, chunks[i], chunks[i+1]))
+    sys.stdout.write(formatfloat(val, chunks[i], chunks[i+1], args.seps))
     sys.stdout.write(chunks[i+3])
     i += 4
