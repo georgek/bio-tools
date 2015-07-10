@@ -9,6 +9,9 @@ parser = argparse.ArgumentParser(
     description="Prints fasta file trimmed according to trim file.")
 parser.add_argument("fasta_file", type=str, help="FASTA file.")
 parser.add_argument("trim_file", type=str, help="Trim file..")
+parser.add_argument("-p", "--prefix", dest="prefix", action="store_true",
+                    help="Names given are a prefix of the name in the fasta.")
+parser.set_defaults(prefix=False)
 
 args = parser.parse_args()
 # ----- end command line parsing -----
@@ -38,7 +41,10 @@ for line in fasta_file:
     if line[0] == '>':
         if seq:
             seqs[name] = seq
-        name = line[1:-1]
+        if args.prefix:
+            name = line[1:-1].split()[0]
+        else:
+            name = line[1:-1]
         seq = []
     else:
         seq = seq + list(line[:-1])
