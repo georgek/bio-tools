@@ -1,0 +1,19 @@
+#!/bin/bash
+
+ref=$1
+read1=$2
+read2=$3
+output=$4
+
+refbase=$(basename ${ref} .fasta)
+
+bowtie2-build ${ref} ${refbase}
+
+bowtie2 -p8 --fr --phred33 -x ${refbase} \
+        -1 ${reads1} \
+        -2 ${reads2} \
+    | samtools view -bS - > ${output}.bam
+
+samtools sort -O bam -T ${output} ${output}.bam > ${output}.sorted.bam
+
+samtools index ${output}.sorted.bam
