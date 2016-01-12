@@ -1,8 +1,8 @@
 #!/bin/bash
 
 ref=$1
-read1=$2
-read2=$3
+reads1=$2
+reads2=$3
 output=$4
 
 refbase=$(basename ${ref} .fasta)
