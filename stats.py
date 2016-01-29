@@ -18,9 +18,9 @@ def median(list):
     if len(list) == 0:
         return 0
     elif len(list) % 2:
-        return sorted(list)[len(list)/2]
+        return sorted(list)[len(list)//2]
     else:
-        return (sorted(list)[len(list)/2-1]+sorted(list)[len(list)/2])/2
+        return (sorted(list)[len(list)//2-1]+sorted(list)[len(list)//2])/2
 
 
 def mode(list):
@@ -42,7 +42,7 @@ def mode(list):
 
 def variance(list):
     lmean = mean(list)
-    sqdiffs = map(lambda x: pow(x - lmean, 2), list)
+    sqdiffs = [pow(x - lmean, 2) for x in list]
     return mean(sqdiffs)
 
 
