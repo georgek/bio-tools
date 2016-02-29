@@ -5,7 +5,7 @@
 import sys
 import argparse
 import re
-
+import numpy as np
 
 def mean(list):
     if len(list) > 0:
@@ -73,7 +73,7 @@ def formatfloat(number, width, precision, separators,
 # ----- command line parsing -----
 parser = argparse.ArgumentParser(
     description="Calculates stats for column and prints according to format string.")
-parser.add_argument("-c", "--column", type=int,
+parser.add_argument("-c", "--column", type=int, default=1,
                     help="The column number.")
 
 parser.add_argument("-f", "--format", type=str,
@@ -103,54 +103,67 @@ if args.format:
 else:
     fmt_str = "Mean: %a, median: %e, mode: %o, min: %m, max: %M, stdev: %s\n"
 
-if args.column:
-    col = args.column
-else:
-    col = 1
-
 if args.delimiter:
     dl = args.delimiter.decode("string_escape")
 else:
     dl = None
-values = []
-for line in sys.stdin:
-    if len(line) > 1:
-        try:
-            values.append(float(line[:-1].split(dl)[col - 1]))
-        except IndexError as e:
-            values.append(args.default)
 
-fmt_re = re.compile("%([0-9]+)?(?:.([0-9]+))?([naeomMvsSN])")
+fmt_re = re.compile("%([0-9]+)?(?:.([0-9]+))?([naeomMvsSN])({[0-9]+})?")
 chunks = fmt_re.split(fmt_str)
-sys.stdout.write(chunks[0])
-i = 1
-while i < len(chunks):
-    type = chunks[i+2]
+strs,wdts,decs,typs,cols = [],[],[],[],[]
+strs.append(chunks[0])
+i=1
+while i+4 < len(chunks):
+    wdts.append(chunks[i])
+    decs.append(chunks[i+1])
+    typs.append(chunks[i+2])
+    if chunks[i+3] is None:
+        cols.append(args.column)
+    else:
+        cols.append(int(chunks[i+3][1:-1]))
+    strs.append(chunks[i+4])
+    i += 5
+assert len(wdts) == len(decs) == len(typs) == len(cols) == len(strs)-1
+
+ucols = [x-1 for x in list(set(cols))]
+locs = {}
+for i in range(len(ucols)):
+    locs[ucols[i]] = i
+
+try:
+    matrix = np.loadtxt(sys.stdin, usecols=ucols, ndmin=2)
+except IndexError as e:
+    sys.exit("Specified column not available.")
+except ValueError as e:
+    sys.exit(e)
+
+for i in range(len(wdts)):
+    sys.stdout.write(strs[i])
+    values = list(matrix[:,locs[cols[i] - 1]])
     if len(values) == 0:
         val = 0
-    elif type == 'n':
+    elif typs[i] == 'n':
         val = len(values)
-    elif type == 'a':
+    elif typs[i] == 'a':
         val = mean(values)
-    elif type == 'e':
+    elif typs[i] == 'e':
         val = median(values)
-    elif type == 'o':
+    elif typs[i] == 'o':
         val = mode(values)
-    elif type == 'm':
+    elif typs[i] == 'm':
         val = min(values)
-    elif type == 'M':
+    elif typs[i] == 'M':
         val = max(values)
-    elif type == 'v':
+    elif typs[i] == 'v':
         val = variance(values)
-    elif type == 's':
+    elif typs[i] == 's':
         val = stddev(values)
-    elif type == 'S':
+    elif typs[i] == 'S':
         val = sum(values)
-    elif type == 'N':
+    elif typs[i] == 'N':
         val = N50(values)
     else:
-        sys.stderr.write("Unrecognised type {:s}.".format(type))
-    sys.stdout.write(formatfloat(val, chunks[i], chunks[i+1], args.seps,
+        sys.stderr.write("Unrecognised type {:s}.".format(typs[i]))
+    sys.stdout.write(formatfloat(val, wdts[i], decs[i], args.seps,
                                  args.width, args.precision))
-    sys.stdout.write(chunks[i+3])
-    i += 4
+sys.stdout.write(strs[i+1])
