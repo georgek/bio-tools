@@ -7,21 +7,6 @@ import argparse
 import re
 import numpy as np
 
-def mean(list):
-    if len(list) > 0:
-        return sum(list)/len(list)
-    else:
-        return 0
-
-
-def median(list):
-    if len(list) == 0:
-        return 0
-    elif len(list) % 2:
-        return sorted(list)[len(list)//2]
-    else:
-        return (sorted(list)[len(list)//2-1]+sorted(list)[len(list)//2])/2
-
 
 def mode(list):
     mode = None
@@ -38,16 +23,6 @@ def mode(list):
             current = item
             currentcount = 1
     return mode if currentcount < modecount else current
-
-
-def variance(list):
-    lmean = mean(list)
-    sqdiffs = [pow(x - lmean, 2) for x in list]
-    return mean(sqdiffs)
-
-
-def stddev(list):
-    return pow(variance(list), 0.5)
 
 
 def N50(list):
@@ -139,27 +114,27 @@ except ValueError as e:
 
 for i in range(len(wdts)):
     sys.stdout.write(strs[i])
-    values = list(matrix[:,locs[cols[i] - 1]])
+    values = matrix[:,locs[cols[i] - 1]]
     if len(values) == 0:
         val = 0
     elif typs[i] == 'n':
         val = len(values)
     elif typs[i] == 'a':
-        val = mean(values)
+        val = np.mean(values)
     elif typs[i] == 'e':
-        val = median(values)
+        val = np.median(values)
     elif typs[i] == 'o':
         val = mode(values)
     elif typs[i] == 'm':
-        val = min(values)
+        val = np.min(values)
     elif typs[i] == 'M':
-        val = max(values)
+        val = np.max(values)
     elif typs[i] == 'v':
-        val = variance(values)
+        val = np.var(values)
     elif typs[i] == 's':
-        val = stddev(values)
+        val = np.std(values)
     elif typs[i] == 'S':
-        val = sum(values)
+        val = np.sum(values)
     elif typs[i] == 'N':
         val = N50(values)
     else:
