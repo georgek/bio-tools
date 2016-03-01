@@ -47,7 +47,32 @@ def formatfloat(number, width, precision, separators,
 
 # ----- command line parsing -----
 parser = argparse.ArgumentParser(
-    description="Calculates stats for column and prints according to format string.")
+    prog="stats",
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    description=
+"""Calculates stats from standard input and prints according to format string.
+
+The format  string is  a bit  like a  C format  string. Format  specifiers are
+subsequences beginning with % and are replaced with statistics calculated from
+the standard input. A format specifier follows this prototype:
+
+%[width][.precision]specifier[{column}]
+
+where the specifier character is one of the following:
+    n : number of values,
+    a : mean,
+    e : median,
+    o : mode,
+    m : min,
+    M : max,
+    v : variance,
+    s : standard deviation,
+    S : sum,
+    N : N50.
+
+The width  and precision control the  amount of padding and  number of decimal
+places,  respectively.  The  column specifies  which column  of the  input the
+statistic is calculated from. By default it is the column given by -c.  """)
 parser.add_argument("-c", "--column", type=int, default=1,
                     help="The column number.")
 
