@@ -7,6 +7,7 @@ import argparse
 import re
 import numpy as np
 
+default_fmt_str = r"Mean: %a, median: %e, mode: %o, min: %m, max: %M, stdev: %s\n"
 
 def mode(list):
     mode = None
@@ -72,7 +73,10 @@ where the specifier character is one of the following:
 
 The width  and precision control the  amount of padding and  number of decimal
 places,  respectively.  The  column specifies  which column  of the  input the
-statistic is calculated from. By default it is the column given by -c.  """)
+statistic is calculated from. By default it is the column given by -c.
+
+The default format string is:
+""" + default_fmt_str)
 parser.add_argument("-c", "--column", type=int, default=1,
                     help="The column number.")
 
@@ -101,7 +105,7 @@ args = parser.parse_args()
 if args.format:
     fmt_str = args.format.decode("string_escape")
 else:
-    fmt_str = "Mean: %a, median: %e, mode: %o, min: %m, max: %M, stdev: %s\n"
+    fmt_str = default_fmt_str.decode("string_escape")
 
 if args.delimiter:
     dl = args.delimiter.decode("string_escape")
