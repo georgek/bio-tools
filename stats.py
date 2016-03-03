@@ -6,8 +6,10 @@ import sys
 import argparse
 import re
 import numpy as np
+from collections import namedtuple
 
 default_fmt_str = r"Mean: %a, median: %e, mode: %o, min: %m, max: %M, stdev: %s\n"
+
 
 def mode(list):
     mode = None
@@ -46,6 +48,24 @@ def formatfloat(number, width, precision, separators,
                       precision if precision else defaultprecision)
 
 
+# define available statistics
+Stat = namedtuple("Stat", "name function")
+stats = {'n': Stat("count", len),
+         'a': Stat("mean", np.mean),
+         'e': Stat("median", np.median),
+         'o': Stat("mode", mode),
+         'm': Stat("minimum", np.amin),
+         'M': Stat("maximum", np.amax),
+         'v': Stat("variance", np.var),
+         's': Stat("standard deviation", np.std),
+         'S': Stat("sum", np.sum),
+         'N': Stat("N50", N50)}
+statstypes = ''.join(stats.keys())
+statshelp = ""
+for stat in stats:
+    statshelp += "   {:s} : {:s},\n".format(stat, stats[stat].name)
+statshelp = statshelp[:-2] + '.\n'
+
 # ----- command line parsing -----
 parser = argparse.ArgumentParser(
     prog="stats",
@@ -60,17 +80,7 @@ the standard input. A format specifier follows this prototype:
 %[width][.precision]specifier[{column}]
 
 where the specifier character is one of the following:
-    n : number of values,
-    a : mean,
-    e : median,
-    o : mode,
-    m : min,
-    M : max,
-    v : variance,
-    s : standard deviation,
-    S : sum,
-    N : N50.
-
+""" + statshelp + """
 The width  and precision control the  amount of padding and  number of decimal
 places,  respectively.  The  column specifies  which column  of the  input the
 statistic is calculated from. By default it is the column given by -c.
@@ -112,7 +122,7 @@ if args.delimiter:
 else:
     dl = None
 
-fmt_re = re.compile("%([0-9]+)?(?:.([0-9]+))?([naeomMvsSN])({[0-9]+})?")
+fmt_re = re.compile("%([0-9]+)?(?:.([0-9]+))?([" + statstypes + "])({[0-9]+})?")
 chunks = fmt_re.split(fmt_str)
 strs,wdts,decs,typs,cols = [],[],[],[],[]
 strs.append(chunks[0])
@@ -146,26 +156,8 @@ for i in range(len(wdts)):
     values = matrix[:,locs[cols[i] - 1]]
     if len(values) == 0:
         val = 0
-    elif typs[i] == 'n':
-        val = len(values)
-    elif typs[i] == 'a':
-        val = np.mean(values)
-    elif typs[i] == 'e':
-        val = np.median(values)
-    elif typs[i] == 'o':
-        val = mode(values)
-    elif typs[i] == 'm':
-        val = np.min(values)
-    elif typs[i] == 'M':
-        val = np.max(values)
-    elif typs[i] == 'v':
-        val = np.var(values)
-    elif typs[i] == 's':
-        val = np.std(values)
-    elif typs[i] == 'S':
-        val = np.sum(values)
-    elif typs[i] == 'N':
-        val = N50(values)
+    elif typs[i] in stats:
+        val = stats[typs[i]].function(values)
     else:
         sys.stderr.write("Unrecognised type {:s}.".format(typs[i]))
     sys.stdout.write(formatfloat(val, wdts[i], decs[i], args.seps,
