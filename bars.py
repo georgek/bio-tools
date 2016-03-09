@@ -12,6 +12,8 @@ parser = argparse.ArgumentParser(
     description="Turns some columns into ASCII bars.")
 parser.add_argument("column", type=int,
                     help="Column to use for bars.")
+parser.add_argument("-w", "--width", type=int, default=20,
+                    help="Width of bars.")
 parser.add_argument("-d", "--delimiter", type=str,
                     help="Column delimeter.")
 
@@ -30,4 +32,4 @@ mbar = max(bars)
 mlen = max(lengths)
 for line, bar in zip(lines, bars):
     sys.stdout.write(line.ljust(mlen) + " ")
-    sys.stdout.write("*" * int(bar/mbar * 10) + "\n")
+    sys.stdout.write("*" * int(bar/mbar * args.width) + "\n")
