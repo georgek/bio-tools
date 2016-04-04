@@ -87,6 +87,8 @@ statistic is calculated from. By default it is the column given by -c.
 
 The default format string is:
 """ + default_fmt_str)
+parser.add_argument("file", type=str, nargs='?',
+                    help="Input file. If not given, read from standard input.")
 parser.add_argument("-c", "--column", type=int, default=1,
                     help="The column number.")
 
@@ -144,8 +146,13 @@ locs = {}
 for i in range(len(ucols)):
     locs[ucols[i]] = i
 
+if args.file is None:
+    input_file = sys.stdin
+else:
+    input_file = open(args.file)
+
 try:
-    matrix = np.loadtxt(sys.stdin, usecols=ucols, ndmin=2)
+    matrix = np.loadtxt(input_file, usecols=ucols, ndmin=2)
 except IndexError as e:
     sys.exit("Specified column not available.")
 except ValueError as e:
