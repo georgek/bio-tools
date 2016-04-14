@@ -14,6 +14,8 @@ parser.add_argument("fasta_file", type=str, help="FASTA file.")
 parser.add_argument("sample_names", type=str, help="Sample names.")
 parser.add_argument("-p", "--prefix", dest="prefix", action="store_true",
                     help="Names given are a prefix of the name in the fasta.")
+parser.add_argument("-d", "--prefix_delimiter",
+                    help="Delimiter for splitting the prefix.")
 parser.set_defaults(prefix=False)
 
 args = parser.parse_args()
@@ -31,7 +33,7 @@ printing = False
 for line in fasta_file:
     if line[0] == '>':
         if args.prefix:
-            name = line[1:-1].split()[0]
+            name = line[1:-1].split(args.prefix_delimiter)[0]
         else:
             name = line[1:-1]
         if name in sample_names:
