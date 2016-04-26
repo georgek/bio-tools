@@ -9,14 +9,16 @@ import numpy as np
 from collections import namedtuple
 
 default_fmt_str = r"Mean: %a, median: %e, mode: %o, min: %m, max: %M, stdev: %s\n"
+default_fmt_str_group = r"%g\tMean: %a, median: %e, mode: %o, min: %m, max: %M, stdev: %s\n"
 
 
-def mode(list):
+def mode(array):
+    vals = array.tolist()
     mode = None
     modecount = 0
     current = None
     currentcount = 0
-    for item in sorted(list):
+    for item in sorted(vals):
         if item == current:
             currentcount += 1
         else:
@@ -28,10 +30,11 @@ def mode(list):
     return mode if currentcount < modecount else current
 
 
-def N50(list):
-    total = sum(list)
+def N50(array):
+    vals = array.tolist()
+    total = sum(vals)
     currentsum = 0
-    for item in sorted(list):
+    for item in sorted(vals):
         currentsum += item
         if currentsum > total/2:
             return item
@@ -59,7 +62,8 @@ stats = {'n': Stat("count", len),
          'v': Stat("variance", np.var),
          's': Stat("standard deviation", np.std),
          'S': Stat("sum", np.sum),
-         'N': Stat("N50", N50)}
+         'N': Stat("N50", N50),
+         'g': Stat("group name", None)}
 statstypes = ''.join(stats.keys())
 statshelp = ""
 for stat in stats:
@@ -71,7 +75,8 @@ parser = argparse.ArgumentParser(
     prog="stats",
     formatter_class=argparse.RawDescriptionHelpFormatter,
     description=
-"""Calculates stats from standard input and prints according to format string.
+    """Calculates stats from an input file, if given, or standard input and prints
+according to format string.
 
 The format  string is  a bit  like a  C format  string. Format  specifiers are
 subsequences beginning with % and are replaced with statistics calculated from
@@ -85,37 +90,42 @@ The width  and precision control the  amount of padding and  number of decimal
 places,  respectively.  The  column specifies  which column  of the  input the
 statistic is calculated from. By default it is the column given by -c.
 
-The default format string is:
-""" + default_fmt_str)
+The default format string when -g is not used is:
+""" + default_fmt_str + """
+
+and when -g is used::
+""" + default_fmt_str_group + """
+
+for grouped (-g).""")
 parser.add_argument("file", type=str, nargs='?',
                     help="Input file. If not given, read from standard input.")
 parser.add_argument("-c", "--column", type=int, default=1,
                     help="The column number.")
+parser.add_argument("-d", "--delimiter", default=None,
+                    help="Column delmiter.")
+parser.add_argument("--default", type=float, default=0.0,
+                    help="Default value for missing values.")
+
+parser.add_argument("-g", "--group_by", default=None, type=int,
+                    help="Column to group statistics by.")
 
 parser.add_argument("-f", "--format", type=str,
                     help="Format string.")
-
-parser.add_argument("-d", "--delimiter", default=None,
-                    help="Column delmiter.")
-
 parser.add_argument("-t", "--thousand_separators", dest="seps", action="store_true",
                     help="Print numbers with thousand separators.")
 parser.set_defaults(seps=False)
-
 parser.add_argument("-p", "--precision", default=2,
                     help="Default precision of floating point numbers.")
-
 parser.add_argument("-w", "--width", default=0,
                     help="Default width of floating point numbers.")
-
-parser.add_argument("--default", type=float, default=0.0,
-                    help="Default value for missing values.")
 
 args = parser.parse_args()
 # ----- end command line parsing -----
 
 if args.format:
     fmt_str = args.format.decode("string_escape")
+elif args.group_by:
+    fmt_str = default_fmt_str_group.decode("string_escape")
 else:
     fmt_str = default_fmt_str.decode("string_escape")
 
@@ -158,15 +168,30 @@ except IndexError as e:
 except ValueError as e:
     sys.exit(e)
 
-for i in range(len(wdts)):
-    sys.stdout.write(strs[i])
-    values = matrix[:,locs[cols[i] - 1]]
-    if len(values) == 0:
-        val = 0
-    elif typs[i] in stats:
-        val = stats[typs[i]].function(values)
-    else:
-        sys.stderr.write("Unrecognised type {:s}.".format(typs[i]))
-    sys.stdout.write(formatfloat(val, wdts[i], decs[i], args.seps,
-                                 args.width, args.precision))
-sys.stdout.write(strs[i+1])
+if args.group_by:
+    input_file.seek(0)
+    groupcol = np.loadtxt(input_file, usecols=[args.group_by-1], dtype=object)
+    ugroups = np.unique(groupcol)
+    indarrays = [np.where(groupcol == group) for group in ugroups]
+else:
+    ugroups = ["default"]
+    indarrays = [np.arange(0,matrix.shape[0])]
+
+for group,indarray in zip(ugroups,indarrays):
+    for i in range(len(wdts)):
+        sys.stdout.write(strs[i])
+        values = matrix[indarray,locs[cols[i] - 1]].flatten()
+        if len(values) == 0:
+            val = 0
+        elif typs[i] == 'g':
+            val = group
+        elif typs[i] in stats:
+            val = stats[typs[i]].function(values)
+        else:
+            sys.stderr.write("Unrecognised type {:s}.".format(typs[i]))
+        if isinstance(val, float):
+            sys.stdout.write(formatfloat(val, wdts[i], decs[i], args.seps,
+                                         args.width, args.precision))
+        elif isinstance(val, str):
+            sys.stdout.write(val)
+    sys.stdout.write(strs[i+1])
