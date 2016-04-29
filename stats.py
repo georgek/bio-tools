@@ -107,7 +107,7 @@ parser.add_argument("--default", type=float, default=0.0,
                     help="Default value for missing values.")
 
 parser.add_argument("-g", "--group_by", default=None, type=int,
-                    help="Column to group statistics by.")
+                    help="Column to group statistics by (not compatible with reading from stdin).")
 
 parser.add_argument("-f", "--format", type=str,
                     help="Format string.")
@@ -121,6 +121,9 @@ parser.add_argument("-w", "--width", default=0,
 
 args = parser.parse_args()
 # ----- end command line parsing -----
+
+if args.file is None and args.group_by is not None:
+    sys.exit("Can't use groups when reading from standard input.")
 
 if args.format:
     fmt_str = args.format.decode("string_escape")
