@@ -33,6 +33,8 @@ def mode(array):
 def N50(array):
     vals = array.tolist()
     total = sum(vals)
+    if total == 0:
+        return 0.0
     currentsum = 0
     for item in sorted(vals):
         currentsum += item
