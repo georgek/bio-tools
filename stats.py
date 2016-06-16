@@ -166,8 +166,8 @@ else:
     input_file = open(args.file)
 
 try:
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
+    with np.warnings.catch_warnings():
+        np.warnings.simplefilter("ignore")
         matrix = np.loadtxt(input_file, usecols=ucols, ndmin=2)
 except IndexError as e:
     sys.exit("Specified column not available.")
