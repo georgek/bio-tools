@@ -95,10 +95,9 @@ statistic is calculated from. By default it is the column given by -c.
 The default format string when -g is not used is:
 """ + default_fmt_str + """
 
-and when -g is used::
-""" + default_fmt_str_group + """
-
-for grouped (-g).""")
+and when -g is used:
+""" + default_fmt_str_group
+)
 parser.add_argument("file", type=str, nargs='?',
                     help="Input file. If not given, read from standard input.")
 parser.add_argument("-c", "--column", type=int, default=1,
