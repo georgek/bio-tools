@@ -38,8 +38,11 @@ for line in sys.stdin:
 
 for data in votes:
     maxn = 0
+    sumn = 0
     for vote in votes[data]:
         if votes[data][vote] > maxn:
             maxv = vote
             maxn = votes[data][vote]
-    sys.stdout.write("{:s}\t{:s}\n".format(data, maxv))
+            sumn += votes[data][vote]
+    if maxn > sumn * args.threshold:
+        sys.stdout.write("{:s}\t{:s}\n".format(data, maxv))
