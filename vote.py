@@ -16,6 +16,8 @@ parser.add_argument("-v", "--vote_column", type=int, default=2,
                     help="Column to vote with.")
 parser.add_argument("-t", "--threshold", type=float, default=0.5,
                     help="Threshold for making a call.")
+parser.add_argument("-m", "--minimum_votes", type=int, default=1,
+                    help="Minimum number of votes required to call.")
 parser.add_argument("-d", "--delimiter", type=str, default=None,
                     help="Column delimiter.")
 
@@ -44,5 +46,5 @@ for data in votes:
             maxv = vote
             maxn = votes[data][vote]
             sumn += votes[data][vote]
-    if maxn > sumn * args.threshold:
+    if sumn > args.minimum_votes and maxn > sumn * args.threshold:
         sys.stdout.write("{:s}\t{:s}\n".format(data, maxv))
