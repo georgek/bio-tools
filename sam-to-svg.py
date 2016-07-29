@@ -24,6 +24,8 @@ parser.add_argument("sam_file", type=str,
                     help="SAM file.")
 parser.add_argument("-l", "--ref_length", type=int,
                     help="Length of reference (taken from SAM file if header is present.")
+parser.add_argument("-m", "--min_length", type=int,
+                    help="Minimum length of alignment to draw.")
 
 args = parser.parse_args()
 # ----- end command line parsing -----
@@ -42,17 +44,18 @@ for line in file:
     else:
         [qname,flag,rname,pos,mapq,cigar,rnext,pnext,tlen,seq,qual,opt] = line.split(None,11)
         aln_len = cigar_to_aln_len(cigar)
-        inserted = False
-        for lane in lanes:
-            if len(lane) == 0:
-                lane.append((int(pos),aln_len))
-                inserted = True
-            elif lane[-1][0]+lane[-1][1] < int(pos):
-                lane.append((int(pos),aln_len))
-                inserted = True
-                break
-        if not inserted:
-            lanes.append([(int(pos),aln_len)])
+        if args.min_length and aln_len >= args.min_length:
+            inserted = False
+            for lane in lanes:
+                if len(lane) == 0:
+                    lane.append((int(pos),aln_len))
+                    inserted = True
+                elif lane[-1][0]+lane[-1][1] < int(pos):
+                    lane.append((int(pos),aln_len))
+                    inserted = True
+                    break
+            if not inserted:
+                lanes.append([(int(pos),aln_len)])
 
 if length is None:
     sys.stderr.write("Error: ref length must be given is SAM header is not present (--ref_length)\n")
