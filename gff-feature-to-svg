@@ -1,0 +1,27 @@
+#!/bin/bash
+
+if [[ $# < 3 ]]; then
+    echo "usage: $0 gff_file ref_len feature"
+    exit
+fi
+
+gff="$1"
+reflen="$2"
+feature="$3"
+
+cat << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100pt" height="10pt" viewBox="0 0 100 10" version="1.1">
+  <g id="genes" style="fill:rgb(120,120,250);stroke-width:0;">
+    <rect x="0" y="0" width="100" height="10" fill="none" />
+EOF
+
+awk -vL=${reflen} -vF=${feature} \
+    '$3 == F {printf "    <rect x=\"%f\" y=\"0\" width=\"%f\" height=\"10\" />\n", ($4/L)*100, (($5-$4)/L)*100;}' \
+    ${gff}
+
+cat << EOF
+  </g>
+</svg>
+EOF
+
