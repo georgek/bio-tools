@@ -44,7 +44,7 @@ for line in file:
     else:
         [qname,flag,rname,pos,mapq,cigar,rnext,pnext,tlen,seq,qual,opt] = line.split(None,11)
         aln_len = cigar_to_aln_len(cigar)
-        if args.min_length and aln_len >= args.min_length:
+        if args.min_length is None or aln_len >= args.min_length:
             inserted = False
             for lane in lanes:
                 if len(lane) == 0:
