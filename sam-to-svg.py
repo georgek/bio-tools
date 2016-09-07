@@ -34,13 +34,17 @@ length = args.ref_length
 lanes = [[]]
 
 file = open(args.sam_file)
+reflengths = {}
+refname = ""
 for line in file:
     if line[0] == "@":
         if line[1:3] == "SQ":
             split = line[3:].split()
             for bit in split:
+                if bit[0:2] == "SN":
+                    refname = bit[3:]
                 if bit[0:2] == "LN":
-                    length = int(bit[3:])
+                    reflengths[refname] = int(bit[3:])
     else:
         [qname,flag,rname,pos,mapq,cigar,rnext,pnext,tlen,seq,qual,opt] = line.split(None,11)
         aln_len = cigar_to_aln_len(cigar)
@@ -48,18 +52,14 @@ for line in file:
             inserted = False
             for lane in lanes:
                 if len(lane) == 0:
-                    lane.append((int(pos),aln_len))
+                    lane.append((int(pos),aln_len,rname))
                     inserted = True
                 elif lane[-1][0]+lane[-1][1] < int(pos):
-                    lane.append((int(pos),aln_len))
+                    lane.append((int(pos),aln_len,rname))
                     inserted = True
                     break
             if not inserted:
-                lanes.append([(int(pos),aln_len)])
-
-if length is None:
-    sys.stderr.write("Error: ref length must be given is SAM header is not present (--ref_length)\n")
-    exit(1)
+                lanes.append([(int(pos),aln_len,rname)])
 
 height = len(lanes) * 10 + (len(lanes)-1) * 2
 sys.stdout.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
@@ -70,10 +70,18 @@ sys.stdout.write("    <rect x=\"0\" y=\"0\" width=\"100\" height=\"" + str(heigh
 y = 0
 for lane in lanes:
     for aln in lane:
+        if aln[2] in reflengths:
+            reflength = reflengths[aln[2]]
+        elif args.ref_length is not None:
+            reflength = args.ref_length
+        else:
+            sys.stderr.write("Error: {:s} not found in SAM header and --ref_length not given.\n"
+                             .format(aln[2]))
+            continue
         sys.stdout.write("    <rect x=\"{:f}\" y=\"{:d}\" width=\"{:f}\" height=\"10\" />\n"
-                         .format((float(aln[0])/length)*100,
+                         .format((float(aln[0])/reflength)*100,
                                  y,
-                                 (float(aln[1])/length)*100))
+                                 (float(aln[1])/reflength)*100))
     y += 12
 
 sys.stdout.write("  </g>\n")
