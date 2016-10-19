@@ -9,7 +9,7 @@ block_size = 10000
 parser = argparse.ArgumentParser(
     description="Subsample a read file to lower coverage and/or read length.")
 parser.add_argument("fastq_file", type=str, help="FASTQ file.")
-parser.add_argument("divide_coverage", type=int, help="Amount to divide coverage by.")
+parser.add_argument("divide_coverage", type=float, help="Amount to divide coverage by.")
 parser.add_argument("old_read_length", type=int, help="Length of original reads.")
 parser.add_argument("new_read_length", type=int, help="Length to reduce reads to.")
 
@@ -24,7 +24,7 @@ qual = ""
 
 len_ratio = args.new_read_length/args.old_read_length
 cov_ratio = 1/args.divide_coverage/len_ratio
-num_reads = cov_ratio * block_size
+num_reads = int(cov_ratio * block_size)
 
 input_file = open(args.fastq_file)
 for line in input_file:
