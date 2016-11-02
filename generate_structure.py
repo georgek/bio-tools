@@ -59,8 +59,7 @@ for isolate_file_name in isolate_files:
     for line in isolate_file:
         if lines % 100000 == 0:
             sys.stderr.write("\r{:.0f}%".format(isolate_file.tell()/float(file_size)*100))
-        # sys.stderr.write("\r{:d}".format(lines))
-        # sys.stderr.flush()
+            sys.stderr.flush()
         lines += 1
         [ref,pos,refa,alta1,alta2] = line.split()
         sname = contig_short_name(ref,pos)
