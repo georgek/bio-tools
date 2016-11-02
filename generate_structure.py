@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import os
 import argparse
 import glob
 from collections import namedtuple
@@ -46,11 +47,21 @@ matrix = []
 default_bases = ["-9" for pos in positions]
 
 isolate_files = glob.glob(args.isolate_dir + "/*")
+isolates = 1
 for isolate_file_name in isolate_files:
+    file_size = os.path.getsize(isolate_file_name)
+    sys.stderr.write("Isolate {:d}: {:s}\n".format(isolates, isolate_short_name(isolate_file_name)))
+    isolates += 1
     isolate_file = open(isolate_file_name)
     base1 = list(default_bases)
     base2 = list(default_bases)
+    lines = 1
     for line in isolate_file:
+        if lines % 100000 == 0:
+            sys.stderr.write("\r{:.0f}%".format(isolate_file.tell()/float(file_size)*100))
+        # sys.stderr.write("\r{:d}".format(lines))
+        # sys.stderr.flush()
+        lines += 1
         [ref,pos,refa,alta1,alta2] = line.split()
         sname = contig_short_name(ref,pos)
         if sname in positions:
@@ -60,6 +71,7 @@ for isolate_file_name in isolate_files:
             positions[sname].bases.add(alta2.upper())
     matrix.append([isolate_short_name(isolate_file_name) + "_1"] + base1)
     matrix.append([isolate_short_name(isolate_file_name) + "_2"] + base2)
+    sys.stderr.write("\n")
 
 missing_positions = set()
 monoallelic_positions = set()
