@@ -4,7 +4,9 @@ ref=$1
 asm=$2
 output=$3
 
-bwa index ${ref}
+if [ -ne ${ref}.bwt ]; then
+    bwa index ${ref}
+fi
 
 bwa mem ${ref} ${asm} | samtools view -b > ${output}.bam
 
