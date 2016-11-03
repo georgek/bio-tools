@@ -103,11 +103,11 @@ for row in matrix:
             sys.stdout.write("\t" + row[positions[position_name].idx + 1])
     sys.stdout.write("\n")
     
-sys.stderr.write("Missing positions:    \t{:d}\n"
-                 "Monoallelic positions:\t{:d}\n"
-                 "Biallelic positions:  \t{:d}\n"
-                 "Other positions:      \t{:d}\n"
-                 "Total:                \t{:d}\n".
+sys.stderr.write("Missing positions:     \t{:d}\n"
+                 "Monoallelic positions: \t{:d}\n"
+                 "Biallelic positions:   \t{:d}\n"
+                 "Multiallelic positions:\t{:d}\n"
+                 "Total:                 \t{:d}\n".
                  format(len(missing_positions),
                         len(monoallelic_positions),
                         len(biallelic_positions),
