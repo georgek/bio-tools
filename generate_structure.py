@@ -61,7 +61,7 @@ for isolate_file_name in isolate_files:
     prog = 0
     for line in isolate_file:
         if lines % 100000 == 0:
-            sys.stderr.write("\r{:.0f}% {:s}\b".format(isolate_file.tell()/float(file_size)*100,
+            sys.stderr.write("\r{:3.0f}% {:s}\b".format(isolate_file.tell()/float(file_size)*100,
                                                      progress[prog]))
             sys.stderr.flush()
             prog = (prog + 1)%4
