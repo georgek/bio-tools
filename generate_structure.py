@@ -19,6 +19,7 @@ Pos = namedtuple("Pos", ["idx","bases"])
 
 basenum = {"A":"1","T":"2","G":"3","C":"4"}
 
+progress = ["-", "\\", "|", "/"]
 
 # ----- command line parsing -----
 parser = argparse.ArgumentParser(
@@ -48,18 +49,22 @@ default_bases = ["-9" for pos in positions]
 
 isolate_files = glob.glob(args.isolate_dir + "/*")
 isolates = 1
+sys.stderr.write("Loading isolate files...\n")
 for isolate_file_name in isolate_files:
     file_size = os.path.getsize(isolate_file_name)
-    sys.stderr.write("Isolate {:d}: {:s}\n".format(isolates, isolate_short_name(isolate_file_name)))
+    sys.stderr.write("Isolate {:d}: {:s}...\n".format(isolates, isolate_short_name(isolate_file_name)))
     isolates += 1
     isolate_file = open(isolate_file_name)
     base1 = list(default_bases)
     base2 = list(default_bases)
     lines = 1
+    prog = 0
     for line in isolate_file:
         if lines % 100000 == 0:
-            sys.stderr.write("\r{:.0f}%".format(isolate_file.tell()/float(file_size)*100))
+            sys.stderr.write("\r{:.0f}% {:s}\b".format(isolate_file.tell()/float(file_size)*100,
+                                                     progress[prog]))
             sys.stderr.flush()
+            prog = (prog + 1)%4
         lines += 1
         [ref,pos,refa,alta1,alta2] = line.split()
         sname = contig_short_name(ref,pos)
@@ -70,8 +75,10 @@ for isolate_file_name in isolate_files:
             positions[sname].bases.add(alta2.upper())
     matrix.append([isolate_short_name(isolate_file_name) + "_1"] + base1)
     matrix.append([isolate_short_name(isolate_file_name) + "_2"] + base2)
+    sys.stderr.write("\rDone. ")
     sys.stderr.write("\n")
 
+sys.stderr.write("Classifying sites...\n")
 missing_positions = set()
 monoallelic_positions = set()
 biallelic_positions = set()
