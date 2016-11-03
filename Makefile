@@ -9,8 +9,5 @@ PROGS = bambaseatpos resample pileupcvg consensus average int-count
 
 all: $(PROGS)
 
-bamvcftool: bamvcftool.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(SAMTOOLSDIR) $(LDFLAGS) -o bamvcftool bamvcftool.c $(SAMTOOLSDIR)/libbam.a $(LDLIBS)
-
 clean:
 	rm -f $(PROGS)
