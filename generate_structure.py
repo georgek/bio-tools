@@ -5,6 +5,8 @@ import os
 import argparse
 import glob
 from collections import namedtuple
+import threading
+import time
 
 def contig_short_name(ref,pos):
     [refn,contign] = ref.split("_")
@@ -15,11 +17,21 @@ def isolate_short_name(name):
     return name.split("/")[-1]
 
 
+def progress(fp, fs, fin):
+    progress = ["-", "\\", "|", "/"]
+    prog = 0
+    while not fin.isSet():
+        sys.stderr.write("\r{:3.0f}% {:s}\b".format(fp.tell()/float(fs)*100,
+                                                    progress[prog]))
+        sys.stderr.flush()
+        prog = (prog + 1)%4
+        time.sleep(1)
+    return
+
+
 Pos = namedtuple("Pos", ["idx","bases"])
 
 basenum = {"A":"1","T":"2","G":"3","C":"4"}
-
-progress = ["-", "\\", "|", "/"]
 
 # ----- command line parsing -----
 parser = argparse.ArgumentParser(
@@ -58,21 +70,30 @@ for isolate_file_name in isolate_files:
     base1 = list(default_bases)
     base2 = list(default_bases)
     lines = 1
-    prog = 0
-    for line in isolate_file:
-        if lines % 100000 == 0:
-            sys.stderr.write("\r{:3.0f}% {:s}\b".format(isolate_file.tell()/float(file_size)*100,
-                                                     progress[prog]))
-            sys.stderr.flush()
-            prog = (prog + 1)%4
-        lines += 1
-        [ref,pos,refa,alta1,alta2] = line.split()
-        sname = contig_short_name(ref,pos)
-        if sname in positions:
-            base1[positions[sname].idx] = basenum[alta1.upper()]
-            positions[sname].bases.add(alta1.upper())
-            base2[positions[sname].idx] = basenum[alta2.upper()]
-            positions[sname].bases.add(alta2.upper())
+    fin = threading.Event()
+    pthread = threading.Thread(name = "progress",
+                                target = progress,
+                                args = (isolate_file, file_size, fin))
+    try:
+        pthread.start()
+        for line in isolate_file:
+            lines += 1
+            [ref,pos,refa,alta1,alta2] = line.split()
+            sname = contig_short_name(ref,pos)
+            if sname in positions:
+                base1[positions[sname].idx] = basenum[alta1.upper()]
+                positions[sname].bases.add(alta1.upper())
+                base2[positions[sname].idx] = basenum[alta2.upper()]
+                positions[sname].bases.add(alta2.upper())
+        fin.set()
+        pthread.join()
+    except KeyboardInterrupt:
+        fin.set()
+        pthread.join()
+        isolate_file.close()
+        sys.stderr.write("\n")
+        sys.exit(1)
+    isolate_file.close()
     matrix.append([isolate_short_name(isolate_file_name) + "_1"] + base1)
     matrix.append([isolate_short_name(isolate_file_name) + "_2"] + base2)
     sys.stderr.write("\rDone. ")
