@@ -21,11 +21,15 @@ def progress(fp, fs, fin):
     progress = ["-", "\\", "|", "/"]
     prog = 0
     while not fin.isSet():
-        sys.stderr.write("\r{:3.0f}% {:s}\b".format(fp.tell()/float(fs)*100,
-                                                    progress[prog]))
-        sys.stderr.flush()
-        prog = (prog + 1)%4
-        time.sleep(0.1)
+        if sys.stderr.isatty():
+            sys.stderr.write("\r{:3.0f}% {:s}\b".format(fp.tell()/float(fs)*100,
+                                                        progress[prog]))
+            sys.stderr.flush()
+            prog = (prog + 1)%4
+            time.sleep(0.1)
+        else:
+            sys.stderr.write("{:3.0f}% ".format(fp.tell()/float(fs)*100))
+            time.sleep(5)
     return
 
 
