@@ -100,7 +100,10 @@ for isolate_file_name in isolate_files:
     isolate_file.close()
     matrix.append([isolate_short_name(isolate_file_name) + "_1"] + base1)
     matrix.append([isolate_short_name(isolate_file_name) + "_2"] + base2)
-    sys.stderr.write("\rDone. ")
+    if sys.stderr.isatty():
+        sys.stderr.write("\rDone. ")
+    else:
+        sys.stderr.write(" Done.")
     sys.stderr.write("\n")
 
 sys.stderr.write("Classifying sites...\n")
