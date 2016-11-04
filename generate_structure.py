@@ -25,7 +25,7 @@ def progress(fp, fs, fin):
                                                     progress[prog]))
         sys.stderr.flush()
         prog = (prog + 1)%4
-        time.sleep(1)
+        time.sleep(0.1)
     return
 
 
