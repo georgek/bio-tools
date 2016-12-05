@@ -11,12 +11,7 @@ int main(int argc, char *argv[])
     int new_read_length;
     double len_ratio;
     double cov_ratio;
-
-    std::string lines[4];
-    int n = 0;
-    std::random_device rd;
-    std::mt19937 mt(rd());
-    std::uniform_real_distribution<double> uniform(0,1);
+    int random_seed;
 
     std::ios_base::sync_with_stdio(false);
 
@@ -26,7 +21,7 @@ int main(int argc, char *argv[])
                || strcmp(argv[1], "--help") == 0)) {
         std::cerr
             << "usage: " << argv[0] << " [-h]"
-            " divide_coverage old_read_length new_read_length\n"
+            " divide_coverage old_read_length new_read_length [random_seed]\n"
             "    Reads fastq and from standard input and prints subsampled\n"
             "    version to standard output. Coverage is divided by\n"
             "    divide_coverage."
@@ -39,6 +34,19 @@ int main(int argc, char *argv[])
     len_ratio = new_read_length/(double) old_read_length;
     cov_ratio = 1.0/divide_coverage/len_ratio;
 
+    std::mt19937 mt;
+    if (argc > 4) {
+        random_seed = std::stod(argv[4]);
+        mt = std::mt19937(random_seed);
+    }
+    else {
+        std::random_device rd;
+        mt = std::mt19937(rd());
+    }
+    std::uniform_real_distribution<double> uniform(0,1);
+
+    int n = 0;
+    std::string lines[4];
     while (std::cin) {
         std::getline(std::cin, lines[n++]);
         if (n > 3) {
