@@ -21,10 +21,10 @@ int main(int argc, char *argv[])
                || strcmp(argv[1], "--help") == 0)) {
         std::cerr
             << "usage: " << argv[0] << " [-h]"
-            " divide_coverage old_read_length new_read_length [random_seed]\n"
-            "    Reads fastq and from standard input and prints subsampled\n"
-            "    version to standard output. Coverage is divided by\n"
-            "    divide_coverage."
+" divide_coverage old_read_length new_read_length [random_seed]\n\n"
+"    Reads fastq and from standard input and prints subsampled version to\n"
+"    standard output. Coverage is divided by divide_coverage.\n"
+"    If using paired-end, do both R1 and R2 with the same random seed."
             << std::endl;
         std::exit(0);
     }
