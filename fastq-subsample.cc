@@ -1,7 +1,10 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include <cstdlib>
+#include <cstdio>
 #include <cstring>
 #include <iostream>
-#include <string>
 #include <random>
 
 int main(int argc, char *argv[])
@@ -14,8 +17,6 @@ int main(int argc, char *argv[])
     double len_ratio;
     double cov_ratio;
     int random_seed;
-
-    std::ios_base::sync_with_stdio(false);
 
     if (argc < 5
         || argc > 1
@@ -42,6 +43,7 @@ int main(int argc, char *argv[])
                   << new_coverage/cov_ratio << "x possible." << std::endl;
     }
     if (new_read_length > old_read_length) {
+        new_read_length = old_read_length;
         std::cerr << "Warning: new read length longer than old read length,"
             "you will only get " << original_coverage*cov_ratio << "x" << std::endl;
     }
@@ -58,16 +60,31 @@ int main(int argc, char *argv[])
     std::uniform_real_distribution<double> uniform(0,1);
 
     int n = 0;
-    std::string lines[4];
-    while (std::cin) {
-        std::getline(std::cin, lines[n++]);
+    char *lines[4];
+    size_t linelens[4];
+    for (n = 0; n < 4; n++) {
+        // getline() will make these bigger if user given length is wrong
+        lines[n] = (char*)malloc(sizeof(char)*(old_read_length+2));
+        linelens[n] = old_read_length+2;
+    }
+    n = 0;
+    ssize_t read;
+    while ((read = getline(&lines[n], &linelens[n], stdin)) != -1) {
+        n++;
         if (n > 3) {
             n = 0;
+            // new_read_length is <= old_read_length, and buffers are at least
+            // as long as old_read_length (+ 2 for newline and null)
+            if (lines[1][new_read_length] != '\0') {
+                lines[1][new_read_length] = '\n';
+            }
+            lines[1][new_read_length+1] = '\0';
+            if (lines[3][new_read_length] != '\0') {
+                lines[3][new_read_length] = '\n';
+            }
+            lines[3][new_read_length+1] = '\0';
             if (uniform(mt) < cov_ratio) {
-                std::cout << lines[0] << "\n";
-                std::cout << lines[1].substr(0,new_read_length) << "\n";
-                std::cout << lines[2] << "\n";
-                std::cout << lines[3].substr(0,new_read_length) << "\n";
+                printf("%s%s%s%s", lines[0],lines[1],lines[2],lines[3]);
             }
         }
     }
