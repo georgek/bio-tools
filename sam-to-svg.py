@@ -16,6 +16,32 @@ def cigar_to_aln_len(cigar):
             current_number = ""
     return total_length
 
+
+def parse_opts(opt):
+    opts = {}
+    for text_opt in opt.split():
+        [name,typ,value] = text_opt.split(":")
+        if typ == "A":
+            opts[name] = value
+        elif typ == "i":
+            opts[name] = int(value)
+        elif typ == "f":
+            opts[name] = float(value)
+        elif typ == "Z":
+            opts[name] = value
+        elif typ == "H":
+            opts[name] = bytearray(value.decode("hex"))
+        elif typ == "B":
+            arr = value.split(",")
+            arrtyp = arr[0]
+            arr = arr[1:]
+            if arrtyp == "f":
+                arr = [float(f) for f in arr]
+            else:
+                arr = [int(f) for f in arr]
+            opts[name] = arr
+    return opts
+
 # ----- command line parsing -----
 parser = argparse.ArgumentParser(
     prog="sam-to-svg",
@@ -26,6 +52,8 @@ parser.add_argument("-l", "--ref_length", type=int,
                     help="Length of reference (taken from SAM file if header is present.")
 parser.add_argument("-m", "--min_length", type=int,
                     help="Minimum length of alignment to draw.")
+parser.add_argument("-i", "--min_identity", type=float,
+                    help="Minimum percent identity of match.")
 
 args = parser.parse_args()
 # ----- end command line parsing -----
@@ -48,7 +76,13 @@ for line in file:
     else:
         [qname,flag,rname,pos,mapq,cigar,rnext,pnext,tlen,seq,qual,opt] = line.split(None,11)
         aln_len = cigar_to_aln_len(cigar)
-        if args.min_length is None or aln_len >= args.min_length:
+        opts = parse_opts(opt)
+        if args.min_identity is not None and "NM" not in opts:
+            sys.exit("No NM value in SAM file, can't calculate percent identity.")
+        if (args.min_length is None or aln_len >= args.min_length) \
+           and (args.min_identity is None
+                or (float(aln_len - opts["NM"])/aln_len)*100 >= args.min_identity):
+            sys.stderr.write("Match id: {:f}\n".format((float(aln_len - opts["NM"])/aln_len)*100))
             inserted = False
             for lane in lanes:
                 if len(lane) == 0:
