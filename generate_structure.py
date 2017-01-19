@@ -31,6 +31,8 @@ def progress(fp, fs, fin):
             sys.stderr.write("{:3.0f}% ".format(fp.tell()/float(fs)*100))
             time.sleep(5)
     else:
+        if sys.stderr.isatty():
+            sys.stderr.write("\r100% *")
         sys.stderr.write("\n")
     return
 
