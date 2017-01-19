@@ -30,6 +30,8 @@ def progress(fp, fs, fin):
         else:
             sys.stderr.write("{:3.0f}% ".format(fp.tell()/float(fs)*100))
             time.sleep(5)
+    else:
+        sys.stderr.write("\n")
     return
 
 
@@ -76,8 +78,8 @@ for isolate_file_name in isolate_files:
     lines = 1
     fin = threading.Event()
     pthread = threading.Thread(name = "progress",
-                                target = progress,
-                                args = (isolate_file, file_size, fin))
+                               target = progress,
+                               args = (isolate_file, file_size, fin))
     try:
         pthread.start()
         for line in isolate_file:
