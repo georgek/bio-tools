@@ -48,7 +48,7 @@ lengths = {}
 input_file_size = os.path.getsize(args.fasta_file)
 input_file = open(args.fasta_file)
 
-sys.stderr.write("Reading input file...\n")
+sys.stderr.write("Reading {:s}...\n".format(args.fasta_file))
 fin = threading.Event()
 pthread = threading.Thread(name = "progress",
                            target = progress,
