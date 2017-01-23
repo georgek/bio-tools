@@ -78,5 +78,5 @@ except KeyboardInterrupt:
     sys.exit(1)
 input_file.close()
         
-for length,count in lengths.iteritems():
+for length,count in sorted(lengths.items()):
     sys.stdout.write("{:d}\t{:d}\n".format(length, count))
