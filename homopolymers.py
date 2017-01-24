@@ -2,46 +2,88 @@
 
 # returns positions of homopolymers for each contig
 
+import sys
+import os
 import argparse
+import threading
+import time
+
+def progress(fp, fs, fin):
+    progress = ["-", "\\", "|", "/"]
+    prog = 0
+    while not fin.isSet():
+        if sys.stderr.isatty():
+            sys.stderr.write("\r{:3.0f}% {:s}\b".format(fp.tell()/float(fs)*100,
+                                                        progress[prog]))
+            sys.stderr.flush()
+            prog = (prog + 1)%4
+            time.sleep(0.1)
+        else:
+            sys.stderr.write("{:3.0f}% ".format(fp.tell()/float(fs)*100))
+            time.sleep(5)
+    else:
+        if sys.stderr.isatty():
+            sys.stderr.write("\r100% *")
+        sys.stderr.write("\n")
+    return
 
 # ----- command line parsing -----
 parser = argparse.ArgumentParser(description="Finds positions of homopolyomers.")
 parser.add_argument("file", type=str, help="Fasta file.")
-parser.add_argument("base", type=str, help="The base to look for.")
 parser.add_argument("min_length", type=int, help="Minimum length of homopolymer.")
 
 args = parser.parse_args()
 # ----- end command line parsing -----
 
+fasta_size = os.path.getsize(args.file)
 fasta = open(args.file)
 
-sequences = {}
-homopolymers = {}
+sys.stderr.write("Reading {:s}...\n".format(args.file))
+fin = threading.Event()
+pthread = threading.Thread(name = "progress",
+                           target = progress,
+                           args = (fasta, fasta_size, fin))
 
-for line in fasta:
-    if line[0] == '>':
-        name = line[1:-1]
-    elif name in sequences:
-        sequences[name] += line[:-1]
-    else:
-        sequences[name] = line[:-1]
-        homopolymers[name] = []
-
-for name,seq in sequences.iteritems():
-    run = 0
-    pos = 0
-    for base in seq:
-        pos += 1
-        if base.upper() == args.base.upper():
-            run += 1
-        else:
+homopolymers = []
+name = ""
+pos = 0
+run = 0
+last_base = ""
+try:
+    pthread.start()
+    for line in fasta:
+        if line[0] == '>':
+            if run >= args.min_length:
+                    homopolymers.append((name, last_base, run, pos-run+1, pos))
+            name = line[1:-1]
+            pos = 0
             run = 0
+            last_base = ""
+            continue
+        for base in line[:-1]:
+            pos += 1
+            if last_base == "":
+                last_base = base
+                run = 1
+            elif base == last_base:
+                run += 1
+            else:
+                if run >= args.min_length:
+                    homopolymers.append((name, last_base, run, pos-run, pos-1))
+                run = 1
+                last_base = base
+    if run >= args.min_length:
+        homopolymers.append((name, last_base, run, pos-run+1, pos))
+    fin.set()
+    pthread.join()
+except KeyboardInterrupt:
+    fin.set()
+    pthread.join()
+    isolate_file.close()
+    sys.stderr.write("\n")
+    sys.exit(1)
+fasta.close()
 
-        if run >= args.min_length:
-            homopolymers[name].append(pos-run)
-            run -= 1
+for homo in homopolymers:
+    sys.stdout.write("{:s}\t{:s}\t{:d}\t{:d}\t{:d}\n".format(*homo))
 
-
-for name,positions in homopolymers.iteritems():
-    for position in positions:
-        print "{:s}\t{:d}".format(name, position)
