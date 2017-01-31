@@ -31,6 +31,9 @@ def progress(fp, fs, fin):
 parser = argparse.ArgumentParser(description="Finds positions of homopolyomers.")
 parser.add_argument("file", type=str, help="Fasta file.")
 parser.add_argument("min_length", type=int, help="Minimum length of homopolymer.")
+parser.add_argument("-s", "--case_sensitive", dest="case", action="store_true",
+                    help="Case sensitive bases.")
+parser.set_defaults(case=False)
 
 args = parser.parse_args()
 # ----- end command line parsing -----
@@ -62,6 +65,7 @@ try:
             continue
         for base in line[:-1]:
             pos += 1
+            if not args.case: base = base.upper()
             if last_base == "":
                 last_base = base
                 run = 1
