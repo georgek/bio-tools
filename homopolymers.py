@@ -7,6 +7,7 @@ import os
 import argparse
 import threading
 import time
+from collections import namedtuple
 
 def progress(fp, fs, fin):
     progress = ["-", "\\", "|", "/"]
@@ -27,12 +28,16 @@ def progress(fp, fs, fin):
         sys.stderr.write("\n")
     return
 
+
+Homopolymer = namedtuple("Homopolymer", "seqname base length beg end")
+
 # ----- command line parsing -----
 parser = argparse.ArgumentParser(description="Finds positions of homopolyomers.")
 parser.add_argument("file", type=str, help="Fasta file.")
 parser.add_argument("min_length", type=int, help="Minimum length of homopolymer.")
 parser.add_argument("-s", "--case_sensitive", dest="case", action="store_true",
                     help="Case sensitive bases.")
+parser.add_argument("-b", "--bases", type=str, help="Comma separated list of bases to consider.")
 parser.set_defaults(case=False)
 
 args = parser.parse_args()
@@ -57,7 +62,7 @@ try:
     for line in fasta:
         if line[0] == '>':
             if run >= args.min_length:
-                    homopolymers.append((name, last_base, run, pos-run+1, pos))
+                    homopolymers.append(Homopolymer(name, last_base, run, pos-run+1, pos))
             name = line[1:-1]
             pos = 0
             run = 0
@@ -73,11 +78,11 @@ try:
                 run += 1
             else:
                 if run >= args.min_length:
-                    homopolymers.append((name, last_base, run, pos-run, pos-1))
+                    homopolymers.append(Homopolymer(name, last_base, run, pos-run, pos-1))
                 run = 1
                 last_base = base
     if run >= args.min_length:
-        homopolymers.append((name, last_base, run, pos-run+1, pos))
+        homopolymers.append(Homopolymer(name, last_base, run, pos-run+1, pos))
     fin.set()
     pthread.join()
 except KeyboardInterrupt:
@@ -88,6 +93,14 @@ except KeyboardInterrupt:
     sys.exit(1)
 fasta.close()
 
-for homo in homopolymers:
-    sys.stdout.write("{:s}\t{:s}\t{:d}\t{:d}\t{:d}\n".format(*homo))
+if args.bases is not None:
+    if args.case:
+        bases = set(args.bases.split(","))
+    else:
+        bases = set(args.bases.upper().split(","))
+else:
+    bases = None
 
+for homo in homopolymers:
+    if bases is None or homo.base in bases:
+        sys.stdout.write("{:s}\t{:s}\t{:d}\t{:d}\t{:d}\n".format(*homo))
