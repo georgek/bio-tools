@@ -42,6 +42,10 @@ def N50(array):
             return item
 
 
+def nrows(matrix):
+    return matrix.shape[0]
+
+
 def formatfloat(number, width, precision, separators,
                 defaultwidth, defaultprecision):
     if separators:
@@ -53,9 +57,18 @@ def formatfloat(number, width, precision, separators,
                       precision if precision else defaultprecision)
 
 
+def formatint(number, width, separators, defaultwidth):
+    if separators:
+        fmt = "{0:{1},d}"
+    else:
+        fmt = "{0:{1}d}"
+    return fmt.format(number,
+                      width if width else defaultwidth)
+
+
 # define available statistics
 Stat = namedtuple("Stat", "name function")
-stats = {'n': Stat("count", len),
+stats = {'n': Stat("count", nrows),
          'a': Stat("mean", np.mean),
          'e': Stat("median", np.median),
          'o': Stat("mode", mode),
@@ -198,6 +211,8 @@ for group,indarray in zip(ugroups,indarrays):
         if isinstance(val, float):
             sys.stdout.write(formatfloat(val, wdts[i], decs[i], args.seps,
                                          args.width, args.precision))
+        elif isinstance(val, int):
+            sys.stdout.write(formatint(val, wdts[i], args.seps, args.width))
         elif isinstance(val, str):
             sys.stdout.write(val)
     sys.stdout.write(strs[i+1])
