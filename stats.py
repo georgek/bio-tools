@@ -66,6 +66,12 @@ def formatint(number, width, separators, defaultwidth):
                       width if width else defaultwidth)
 
 
+def formatstr(string, width, defaultwidth):
+    fmt = "{0:{1}s}"
+    return fmt.format(string,
+                      width if width else defaultwidth)
+
+
 # define available statistics
 Stat = namedtuple("Stat", "name function")
 stats = {'n': Stat("count", nrows),
@@ -214,5 +220,5 @@ for group,indarray in zip(ugroups,indarrays):
         elif isinstance(val, int):
             sys.stdout.write(formatint(val, wdts[i], args.seps, args.width))
         elif isinstance(val, str):
-            sys.stdout.write(val)
+            sys.stdout.write(formatstr(val, wdts[i], args.width))
     sys.stdout.write(strs[i+1])
