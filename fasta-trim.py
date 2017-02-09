@@ -12,6 +12,9 @@ parser.add_argument("trim_file", type=str, help="Trim file..")
 parser.add_argument("-p", "--prefix", dest="prefix", action="store_true",
                     help="Names given are a prefix of the name in the fasta.")
 parser.set_defaults(prefix=False)
+parser.add_argument("-e", "--exclude", dest="exclude", action="store_true",
+                    help="Exclude names not given in trim file (default is to leave untrimmed).")
+parser.set_defaults(exclude=False)
 
 args = parser.parse_args()
 # ----- end command line parsing -----
@@ -52,10 +55,11 @@ if seq:
     seqs[name] = seq
 
 for name,seq in seqs.iteritems():
-    seqbeg = beg[name]-1 if name in beg else 0
-    seqend = end[name] if name in end else len(seq)
-    if (seqbeg < seqend):
-        print ">{:s}".format(name)
-        print ''.join(seq[seqbeg:seqend])
+    if not args.exclude or name in beg:
+        seqbeg = beg[name]-1 if name in beg else 0
+        seqend = end[name] if name in end else len(seq)
+        if (seqbeg < seqend):
+            print ">{:s}".format(name)
+            print ''.join(seq[seqbeg:seqend])
 name = line[1:-1]
 seq = []
