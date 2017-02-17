@@ -15,6 +15,9 @@ parser.set_defaults(prefix=False)
 parser.add_argument("-e", "--exclude", dest="exclude", action="store_true",
                     help="Exclude names not given in trim file (default is to leave untrimmed).")
 parser.set_defaults(exclude=False)
+parser.add_argument("-s", "--split", dest="split", action="store_true",
+                    help="Split contigs (default is to have only one copy of each original contig).")
+parser.set_defaults(split=False)
 
 args = parser.parse_args()
 # ----- end command line parsing -----
@@ -22,19 +25,28 @@ args = parser.parse_args()
 fasta_file = open(args.fasta_file)
 trim_file = open(args.trim_file)
 
-beg = {}
-end = {}
+beginnings = {}
+ends = {}
 for line in trim_file:
-    split = line.split()
-    name = split[0]
-    if name not in beg:
-        beg[name] = int(split[1])
+    [name,beg,end] = line.split()
+    if (args.split):
+        if name not in beginnings:
+            beginnings[name] = [int(beg)]
+        else:
+            beginnings[name].append(int(beg))
+        if name not in ends:
+            ends[name] = [int(end)]
+        else:
+            ends[name].append(int(end))
     else:
-        beg[name] = max(int(split[1]), beg[name])
-    if name not in end:
-        end[name] = int(split[2])
-    else:
-        end[name] = min(int(split[2]), end[name])
+        if name not in beginnings:
+            beginnings[name] = [int(beg)]
+        else:
+            beginnings[name] = [max(int(beg), beginnings[name][0])]
+        if name not in ends:
+            ends[name] = [int(end)]
+        else:
+            ends[name] = [min(int(end), ends[name][0])]
 trim_file.close()
 
 seqs = {}
@@ -54,12 +66,16 @@ for line in fasta_file:
 if seq:
     seqs[name] = seq
 
-for name,seq in seqs.iteritems():
-    if not args.exclude or name in beg:
-        seqbeg = beg[name]-1 if name in beg else 0
-        seqend = end[name] if name in end else len(seq)
-        if (seqbeg < seqend):
-            print ">{:s}".format(name)
-            print ''.join(seq[seqbeg:seqend])
+for name,seq in seqs.items():
+    if not args.exclude or name in beginnings:
+        nseq = 0
+        while len(beginnings[name]) > 0:
+            nseq += 1
+            seqbeg = beginnings[name].pop()-1 if name in beginnings else 0
+            seqend = ends[name].pop() if name in ends else len(seq)
+            if (seqbeg < seqend):
+                sys.stdout.write(">{:s}_{:d}\n".format(name,nseq))
+                sys.stdout.write("".join(seq[seqbeg:seqend]))
+                sys.stdout.write("\n")
 name = line[1:-1]
 seq = []
