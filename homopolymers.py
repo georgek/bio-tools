@@ -9,10 +9,12 @@ import threading
 import time
 from collections import namedtuple
 
-def progress(fp, fs, fin):
+def progress(fp, fs, fin, err):
     progress = ["-", "\\", "|", "/"]
     prog = 0
-    while not fin.isSet():
+    if (fs <= 0):
+        return
+    while not fin.isSet() and not err.isSet():
         if sys.stderr.isatty():
             sys.stderr.write("\r{:3.0f}% {:s}\b"
                              .format(fp.tell()/float(fs)*100,
@@ -25,7 +27,7 @@ def progress(fp, fs, fin):
                              .format(fp.tell()/float(fs)*100))
             time.sleep(5)
     else:
-        if sys.stderr.isatty():
+        if sys.stderr.isatty() and fin.isSet():
             sys.stderr.write("\r100% *")
         sys.stderr.write("\n")
     return
@@ -55,9 +57,10 @@ fasta = open(args.file)
 
 sys.stderr.write("Reading {:s}...\n".format(args.file))
 fin = threading.Event()
+err = threading.Event()
 pthread = threading.Thread(name = "progress",
                            target = progress,
-                           args = (fasta, fasta_size, fin))
+                           args = (fasta, fasta_size, fin, err))
 
 homopolymers = []
 name = ""
@@ -98,12 +101,12 @@ try:
                         run, pos-run+1, pos))
     fin.set()
     pthread.join()
-except KeyboardInterrupt:
-    fin.set()
-    pthread.join()
-    isolate_file.close()
-    sys.stderr.write("\n")
-    sys.exit(1)
+except Exception as e:
+    sys.stderr.write("\nError: {:s}".format(e))
+    err.set()
+except:
+    err.set()
+pthread.join()
 fasta.close()
 
 if args.bases is not None:
