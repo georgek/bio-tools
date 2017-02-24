@@ -137,7 +137,7 @@ parser.add_argument("-t", "--thousand_separators", dest="seps", action="store_tr
 parser.set_defaults(seps=False)
 parser.add_argument("-p", "--precision", default=2,
                     help="Default precision of floating point numbers.")
-parser.add_argument("-w", "--width", default=0,
+parser.add_argument("-w", "--width", default=1,
                     help="Default width of floating point numbers.")
 
 args = parser.parse_args()
