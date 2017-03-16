@@ -7,6 +7,7 @@ import argparse
 import re
 import numpy as np
 from collections import namedtuple
+import warnings
 
 default_fmt_str = r"Mean: %a, median: %e, mode: %o, min: %m, max: %M, stdev: %s\n"
 default_fmt_str_group = r"%g\tMean: %a, median: %e, mode: %o, min: %m, max: %M, stdev: %s\n"
@@ -136,7 +137,7 @@ parser.add_argument("-t", "--thousand_separators", dest="seps", action="store_tr
 parser.set_defaults(seps=False)
 parser.add_argument("-p", "--precision", default=2,
                     help="Default precision of floating point numbers.")
-parser.add_argument("-w", "--width", default=0,
+parser.add_argument("-w", "--width", default=1,
                     help="Default width of floating point numbers.")
 
 args = parser.parse_args()
@@ -185,8 +186,8 @@ else:
     input_file = open(args.file)
 
 try:
-    with np.warnings.catch_warnings():
-        np.warnings.simplefilter("ignore")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
         matrix = np.loadtxt(input_file, usecols=ucols, ndmin=2)
 except IndexError as e:
     sys.exit("Specified column not available.")
