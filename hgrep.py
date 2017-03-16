@@ -5,8 +5,8 @@
 import sys
 import argparse
 import subprocess
-from glob import glob
-from os.path import expanduser
+import glob
+import os.path
 
 class colours:
     BLUE = '\033[94m'
@@ -28,6 +28,8 @@ parser.add_argument("day", type=str, nargs="?", default="",
 
 parser.add_argument("--color", type=str, choices=["never","always","auto"],
                     default="auto", help="Use colour output.")
+parser.add_argument("--histdir", type=str, default="~/.history",
+                    help="History directory location (default ~/.history)")
 
 args = parser.parse_args()
 # ----- end command line parsing -----
@@ -42,8 +44,12 @@ if len(args.day) == 1:
 else:
     day = args.day
 
-home = expanduser("~")
-files = glob(home + "/.history/*" + year + "/*" + month + "/*" + day + "*")
+historydir = os.path.expanduser(args.histdir)
+if not os.path.isdir(historydir):
+    sys.stderr.write(historydir + " does not exist.\n")
+    exit(2)
+
+files = glob.glob(historydir + "/*" + year + "/*" + month + "/*" + day + "*")
 
 if args.color == "always" or args.color =="auto" and sys.stdout.isatty():
     colourarg = "--color=always"
