@@ -49,7 +49,8 @@ if not os.path.isdir(historydir):
     sys.stderr.write(historydir + " does not exist.\n")
     exit(2)
 
-files = glob.glob(historydir + "/*" + year + "/*" + month + "/*" + day + "*")
+files = sorted(glob.glob(historydir + "/*" +
+                         year + "/*" + month + "/*" + day + "*"))
 
 if args.color == "always" or args.color =="auto" and sys.stdout.isatty():
     colourarg = "--color=always"
