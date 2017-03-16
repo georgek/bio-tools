@@ -7,6 +7,7 @@ import argparse
 import subprocess
 import glob
 import os.path
+import datetime
 
 class colours:
     BLUE = '\033[94m'
@@ -15,7 +16,10 @@ class colours:
 
 # ----- command line parsing -----
 parser = argparse.ArgumentParser(
-    description="Greps the history with optional date restrictions")
+    description="Greps the history with optional date restrictions. \
+The date restrictions support absolute numbers for year, month and \
+day, and also relative to today, with - meaning this year/month/day \
+and -n meaning n years/months/days ago.")
 
 parser.add_argument("string", type=str,
                     help="The search string.")
@@ -34,12 +38,27 @@ parser.add_argument("--histdir", type=str, default="~/.history",
 args = parser.parse_args()
 # ----- end command line parsing -----
 
-year = args.year
-if len(args.month) == 1:
+if len(args.year) == 1 and args.year[0] == "-":
+    year = str(datetime.date.today().year)
+elif len(args.year) > 1 and args.year[0] == "-":
+    year = str(datetime.date.today().year - int(args.year[1:]))
+else:
+    year = args.year
+
+if len(args.month) == 1 and args.month[0] == "-":
+    month = str(datetime.date.today().month)
+elif len(args.month) > 1 and args.month[0] == "-":
+    month = str(datetime.date.today().month - int(args.month[1:]))
+elif len(args.month) == 1:
     month = "0" + args.month
 else:
     month = args.month
-if len(args.day) == 1:
+
+if len(args.day) == 1 and args.day[0] == "-":
+    day = str(datetime.date.today().day)
+elif len(args.day) > 1 and args.day[0] == "-":
+    day = str(datetime.date.today().day - int(args.day[1:]))
+elif len(args.day) == 1:
     day = "0" + args.day
 else:
     day = args.day
@@ -50,7 +69,7 @@ if not os.path.isdir(historydir):
     exit(2)
 
 files = sorted(glob.glob(historydir + "/*" +
-                         year + "/*" + month + "/*" + day + "*"))
+                         year + "/*" + month + "/" + day + "*"))
 
 if args.color == "always" or args.color =="auto" and sys.stdout.isatty():
     colourarg = "--color=always"
