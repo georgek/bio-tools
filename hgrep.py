@@ -26,7 +26,7 @@ parser.add_argument("month", type=str, nargs="?", default="",
 parser.add_argument("day", type=str, nargs="?", default="",
                     help="Restrict search to DAY.")
 
-parser.add_argument("--colour", type=str, choices=["never","always","auto"],
+parser.add_argument("--color", type=str, choices=["never","always","auto"],
                     default="auto", help="Use colour output.")
 
 args = parser.parse_args()
@@ -44,9 +44,15 @@ else:
 
 home = expanduser("~")
 files = glob(home + "/.history/*" + year + "/*" + month + "/*" + day + "*")
+
+if args.color == "always" or args.color =="auto" and sys.stdout.isatty():
+    colourarg = "--color=always"
+else:
+    colourarg = "--color=never"
+
 if len(files) > 0:
     try:
-        output = subprocess.check_output(["grep", args.string] + files)
+        output = subprocess.check_output(["grep", colourarg, args.string] + files)
     except subprocess.CalledProcessError as e:
         # grep finds nothing
         exit(e.returncode)
@@ -61,7 +67,7 @@ for match in matches:
     [day,hour,minute,second] = daytime.split(".",3)
     timestamp = "({:s}-{:s}-{:s} {:s}:{:s})".format(
         year, month, day, hour, minute)
-    if args.colour == "always" or args.colour =="auto" and sys.stdout.isatty():
+    if args.color == "always" or args.color =="auto" and sys.stdout.isatty():
         sys.stdout.write(colours.GREEN + host + colours.ENDC + " ")
         sys.stdout.write(colours.BLUE + timestamp + colours.ENDC)
     else:
