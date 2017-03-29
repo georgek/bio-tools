@@ -31,6 +31,10 @@ def mode(array):
     return mode if currentcount < modecount else current
 
 
+def gmean(array):
+    return np.exp(np.mean(np.log(array)))
+
+
 def N50(array):
     vals = array.tolist()
     total = sum(vals)
@@ -76,7 +80,8 @@ def formatstr(string, width, defaultwidth):
 # define available statistics
 Stat = namedtuple("Stat", "name function")
 stats = {'n': Stat("count", nrows),
-         'a': Stat("mean", np.mean),
+         'a': Stat("arithmetic mean", np.mean),
+         'h': Stat("geometric mean", gmean),
          'e': Stat("median", np.median),
          'o': Stat("mode", mode),
          'm': Stat("minimum", np.amin),
