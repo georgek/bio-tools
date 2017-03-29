@@ -167,7 +167,9 @@ while i+4 < len(chunks):
     wdts.append(chunks[i])
     decs.append(chunks[i+1])
     typs.append(chunks[i+2])
-    if chunks[i+3] is None:
+    if chunks[i+2] == "g":
+        cols.append(None)
+    elif chunks[i+3] is None:
         cols.append(args.column)
     else:
         cols.append(int(chunks[i+3][1:-1]))
@@ -175,7 +177,7 @@ while i+4 < len(chunks):
     i += 5
 assert len(wdts) == len(decs) == len(typs) == len(cols) == len(strs)-1
 
-ucols = [x-1 for x in list(set(cols))]
+ucols = [x-1 for x in list(set(cols)) if x is not None]
 locs = {}
 for i in range(len(ucols)):
     locs[ucols[i]] = i
@@ -206,15 +208,18 @@ else:
 for group,indarray in zip(ugroups,indarrays):
     for i in range(len(wdts)):
         sys.stdout.write(strs[i])
-        values = matrix[indarray,locs[cols[i] - 1]].flatten()
-        if len(values) == 0:
-            val = 0
-        elif typs[i] == 'g':
+
+        if typs[i] == "g":
             val = group
-        elif typs[i] in stats:
-            val = stats[typs[i]].function(values)
-        else:
+        elif typs[i] not in stats:
             sys.stderr.write("Unrecognised type {:s}.".format(typs[i]))
+        else:
+            values = matrix[indarray,locs[cols[i] - 1]].flatten()
+            if len(values) == 0:
+                val = 0
+            else:
+                val = stats[typs[i]].function(values)
+
         if isinstance(val, float):
             sys.stdout.write(formatfloat(val, wdts[i], decs[i], args.seps,
                                          args.width, args.precision))
