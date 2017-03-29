@@ -188,7 +188,7 @@ else:
 try:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        matrix = np.loadtxt(input_file, usecols=ucols, ndmin=2)
+        matrix = np.loadtxt(input_file, usecols=ucols, ndmin=2, delimiter=dl)
 except IndexError as e:
     sys.exit("Specified column not available.")
 except ValueError as e:
