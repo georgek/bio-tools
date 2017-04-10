@@ -5,6 +5,7 @@
 
 
 #define FLANK_LEN 60
+#define ARR_INIT_SIZE 8
 
 /* a ring buffer */
 struct buffer
@@ -60,6 +61,51 @@ void buffer_skip_nulls(struct buffer *buf)
      }
 }
 
+/* struct for holding an output */
+typedef struct output
+{
+     char *string;  /* the complete output string */
+     int num_n;     /* number of Ns following this string */
+     int seen;      /* has this or the mate been seen? */
+     struct output *mate; /* the reverse complement of this */
+} Output;
+
+Output *new_output(int strlen, struct output *mate)
+{
+     struct output *new = malloc(sizeof(struct output));
+     new->string = malloc(strlen+1);
+     new->string[strlen] = '\0';
+     new->seen = 0;
+     new->mate = mate;
+     return new;
+}
+
+typedef struct outputs
+{
+     int length;
+     int max_length;
+     struct output **items;
+} Outputs;
+
+Outputs new_outputs()
+{
+     struct outputs array;
+     array.length = 0;
+     array.max_length = ARR_INIT_SIZE;
+     array.items = malloc(sizeof(array.items) * array.max_length);
+     return array;
+}
+
+void add_output(Outputs *array, Output *new)
+{
+     if (array->length >= array->max_length) {
+          array->max_length <<= 1;
+          array->items = realloc(array->items,
+                                 sizeof(array->items) * array->max_length);
+     }
+     array->items[array->length++] = new;
+}
+
 /* Aho-Corasick algorithm for multiple string/dictionary search */
 
 /* this implementation only supports characters ACGT (case insensitive) */
@@ -85,7 +131,6 @@ typedef struct node_array
      Node **states;
 } NodeArray;
 
-#define INIT_SIZE 8
 Node *new_Node(int state)
 {
      Node *new = malloc(sizeof(struct node));
@@ -102,7 +147,7 @@ NodeArray new_NodeArray()
 {
      NodeArray array;
      array.length = 0;
-     array.max_length = INIT_SIZE;
+     array.max_length = ARR_INIT_SIZE;
      array.states = malloc(sizeof(array.states) * array.max_length);
      return array;
 }
@@ -233,7 +278,8 @@ void search_all(char *text, int len, NodeArray go, int *failures)
      }
 }
 
-void put_flanks_in_go(NodeArray *go, FILE *fasta, int flank_len)
+void put_flanks_in_go(NodeArray *go, Outputs *out,
+                      FILE *fasta, int flank_len)
 {
      int c, skip = 0;
      char b;
@@ -283,6 +329,7 @@ int main(int argc, char *argv[])
      /* char *strings[] = {"cgtagctga", "cgtagctagg", "acgtagct", "aagctcgat", "ctcgatacgg", "cgtaggctag"}; */
 
      NodeArray go;
+     Outputs out;
      int *failures;
 
      FILE *fasta;
@@ -299,10 +346,11 @@ int main(int argc, char *argv[])
 
      /* go = build_go(strings, 6); */
 
+     out = new_outputs();
 
      fasta = fopen(argv[1], "r");
      if (fasta) {
-          put_flanks_in_go(&go, fasta, FLANK_LEN);
+          put_flanks_in_go(&go, &out, fasta, FLANK_LEN);
      }
      
      /* failures = build_failures(&go); */
