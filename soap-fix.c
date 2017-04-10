@@ -3,15 +3,6 @@
 #include <memory.h>
 #include <ctype.h>
 
-/* Quick Search */
-
-/* Modified implementation from:
- * http://www-igm.univ-mlv.fr/~lecroq/string/node19.html
- * by Christian Charras and Thierry Lecroq
- *
- * Algorithm from:
- * Hume, Andrew, and Daniel Sunday. "Fast string searching."
- * Software: Practice and Experience 21, no. 11 (1991): 1221-1248.*/
 
 #define FLANK_LEN 60
 
@@ -67,38 +58,6 @@ void buffer_skip_nulls(struct buffer *buf)
      while (*(buf->items + buf->beg) == 0) {
           buf->beg = (buf->beg + 1)%buf->size;
      }
-}
-
-#define ASIZE 256
-
-void preQsBc(unsigned char *s, int slen, int qsBc[])
-{
-     int i;
-
-     for (i = 0; i < ASIZE; ++i) {
-          qsBc[i] = slen + 1;
-     }
-     for (i = 0; i < slen; ++i) {
-          qsBc[s[i]] = slen - i;
-     }
-}
-
-int QS(unsigned char *sch, int slen, unsigned char *txt, int tlen)
-{
-     int j, qsBc[ASIZE];
-
-     /* Preprocessing */
-     preQsBc(sch, slen, qsBc);
-
-     /* Searching */
-     j = 0;
-     while (j <= tlen - slen) {
-          if (memcmp(sch, txt+j, slen) == 0) {
-               return j;
-          }
-          j += qsBc[txt[j + slen]];  /* shift */
-     }
-     return -1;
 }
 
 /* Aho-Corasick algorithm for multiple string/dictionary search */
