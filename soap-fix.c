@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <memory.h>
+#include <ctype.h>
 
 /* Quick Search */
 
@@ -11,6 +12,63 @@
  * Algorithm from:
  * Hume, Andrew, and Daniel Sunday. "Fast string searching."
  * Software: Practice and Experience 21, no. 11 (1991): 1221-1248.*/
+
+#define FLANK_LEN 60
+
+/* a ring buffer */
+struct buffer
+{
+     size_t beg, size;
+     char *items;
+};
+
+int init_buffer(struct buffer *buf, size_t size)
+{
+     buf->beg = 0;
+     buf->size = size;
+     buf->items = calloc(size, sizeof(char));
+     if (!buf->items) {
+          return -1;
+     }
+     return 0;
+}
+
+void free_buffer(struct buffer *buf)
+{
+     buf->beg = 0;
+     buf->size = 0;
+     free(buf->items);
+}
+
+void buffer_put(struct buffer *buf, char item)
+{
+     *(buf->items + buf->beg) = item;
+     buf->beg = (buf->beg + 1)%buf->size;
+}
+
+char buffer_get(struct buffer *buf)
+{
+     char last = *(buf->items + buf->beg);
+     *(buf->items + buf->beg) = 0;
+     buf->beg = (buf->beg + 1)%buf->size;
+     return last;
+}
+
+void buffer_clear(struct buffer *buf)
+{
+     while (*(buf->items + buf->beg) != 0) {
+          *(buf->items + buf->beg) = 0;
+          buf->beg = (buf->beg + 1)%buf->size;
+     }
+}
+
+void buffer_skip_nulls(struct buffer *buf)
+{
+     while (*(buf->items + buf->beg) == 0) {
+          buf->beg = (buf->beg + 1)%buf->size;
+     }
+}
+
 #define ASIZE 256
 
 void preQsBc(unsigned char *s, int slen, int qsBc[])
@@ -216,9 +274,40 @@ void search_all(char *text, int len, NodeArray go, int *failures)
      }
 }
 
-void read_contigs()
+void put_flanks_in_go(NodeArray *go, FILE *fasta, int flank_len)
 {
-     
+     int c, skip = 0;
+     char b;
+     struct buffer buf;
+
+     init_buffer(&buf, flank_len);
+
+     while ((c = getc(fasta)) != EOF) {
+          if (c == '\n' && skip) {
+               skip = 0;
+          }
+          else if (skip) {
+               continue;
+          }
+          else if (c == '>') {
+               buffer_clear(&buf);
+               skip = 1;
+          }
+          else if (toupper(c) == 'N') {
+               buffer_skip_nulls(&buf);
+               while ((b = buffer_get(&buf)) != 0){
+                    putchar(b);
+               }
+               printf("\n");
+               while (toupper(c = getc(fasta)) == 'N');
+               buffer_put(&buf, c);
+          }
+          else {
+               buffer_put(&buf, c);
+          }
+     }
+
+     free_buffer(&buf);
 }
 
 int main(int argc, char *argv[])
@@ -231,11 +320,13 @@ int main(int argc, char *argv[])
      /* int tlen = sizeof(text) - 1; */
      /* int slen = sizeof(search) - 1; */
 
-     char new_text[] = "ggatcgatgagatatcgcgctagctagtgagctcgcgctaaagctcgatacgggatcgatcgatcgcgagatcgcgggag";
-     char *strings[] = {"cgtagctga", "cgtagctagg", "acgtagct", "aagctcgat", "ctcgatacgg", "cgtaggctag"};
+     /* char new_text[] = "ggatcgatgagatatcgcgctagctagtgagctcgcgctaaagctcgatacgggatcgatcgatcgcgagatcgcgggag"; */
+     /* char *strings[] = {"cgtagctga", "cgtagctagg", "acgtagct", "aagctcgat", "ctcgatacgg", "cgtaggctag"}; */
 
      NodeArray go;
      int *failures;
+
+     FILE *fasta;
 
      /* exhaustive search */
      /* while (pos <= tlen - slen) { */
@@ -247,8 +338,15 @@ int main(int argc, char *argv[])
      /*      pos += res + slen; */
      /* } */
 
-     go = build_go(strings, 6);
-     failures = build_failures(&go);
+     /* go = build_go(strings, 6); */
+
+
+     fasta = fopen(argv[1], "r");
+     if (fasta) {
+          put_flanks_in_go(&go, fasta, FLANK_LEN);
+     }
+     
+     /* failures = build_failures(&go); */
 
      /* printf("%d\n", go.length); */
      /* for (pos = 0; pos < go.length; ++pos) { */
@@ -264,8 +362,8 @@ int main(int argc, char *argv[])
      /*      } */
      /* } */
 
-     printf("%s\n", new_text);
-     search_all(new_text, sizeof(new_text), go, failures);
+     /* printf("%s\n", new_text); */
+     /* search_all(new_text, sizeof(new_text), go, failures); */
 
      return 0;
 }
