@@ -7,7 +7,7 @@
 /* Modified implementation from:
  * http://www-igm.univ-mlv.fr/~lecroq/string/node19.html
  * by Christian Charras and Thierry Lecroq
- * 
+ *
  * Algorithm from:
  * Hume, Andrew, and Daniel Sunday. "Fast string searching."
  * Software: Practice and Experience 21, no. 11 (1991): 1221-1248.*/
@@ -31,7 +31,7 @@ int QS(unsigned char *sch, int slen, unsigned char *txt, int tlen)
 
      /* Preprocessing */
      preQsBc(sch, slen, qsBc);
- 
+
      /* Searching */
      j = 0;
      while (j <= tlen - slen) {
@@ -49,19 +49,19 @@ int QS(unsigned char *sch, int slen, unsigned char *txt, int tlen)
 
 /* this lets us quickly use bases as indexes, ACTG = 0123, upper or lower */
 enum base {A,C,T,G};
-int b2i(char c) 
+int b2i(char c)
 {
      return (c >> 1) & 0x3;
 }
 
-typedef struct node 
+typedef struct node
 {
      int state;
      char *output;
      struct node *next[4];
 } Node;
 
-typedef struct node_array 
+typedef struct node_array
 {
      int length;
      int max_length;
@@ -69,7 +69,7 @@ typedef struct node_array
 } NodeArray;
 
 #define INIT_SIZE 8
-Node *new_Node(int state) 
+Node *new_Node(int state)
 {
      Node *new = malloc(sizeof(struct node));
      new->state = state;
@@ -90,7 +90,7 @@ NodeArray new_NodeArray()
      return array;
 }
 
-void add_Node(NodeArray *array, Node *new) 
+void add_Node(NodeArray *array, Node *new)
 {
      if (array->length >= array->max_length) {
           array->max_length <<= 1;
@@ -100,7 +100,7 @@ void add_Node(NodeArray *array, Node *new)
      array->states[array->length++] = new;
 }
 
-NodeArray init_go() 
+NodeArray init_go()
 {
      NodeArray nodes = new_NodeArray();
      Node *root = new_Node(0);
@@ -108,7 +108,7 @@ NodeArray init_go()
      return nodes;
 }
 
-void finish_go(NodeArray *go) 
+void finish_go(NodeArray *go)
 {
      int i;
      Node *root = go->states[0];
@@ -146,11 +146,11 @@ NodeArray build_go(char **strings, int n)
      }
 
      finish_go(&go);
-     
+
      return go;
 }
 
-int *build_failures(NodeArray *go) 
+int *build_failures(NodeArray *go)
 {
      int *failures = malloc(sizeof(int) * go->length);
      int *queue = malloc(sizeof(int) * go->length);
@@ -188,7 +188,6 @@ int *build_failures(NodeArray *go)
                     }
                }
           }
-          
      }
 
      free(queue);
@@ -217,11 +216,16 @@ void search_all(char *text, int len, NodeArray go, int *failures)
      }
 }
 
+void read_contigs()
+{
+     
+}
+
 int main(int argc, char *argv[])
 {
      /* int res; */
      /* int pos = 0; */
-     
+
      /* unsigned char text[] = "ifoisjfoejfoiewj"; */
      /* unsigned char search[] = "foi"; */
      /* int tlen = sizeof(text) - 1; */
