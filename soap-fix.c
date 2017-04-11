@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <memory.h>
 #include <ctype.h>
-
+#include <assert.h>
 
 #define FLANK_LEN 60
 #define ARR_INIT_SIZE 8
@@ -61,6 +61,17 @@ void buffer_skip_nulls(struct buffer *buf)
      }
 }
 
+void buffer_to_string(struct buffer *buf, char *string)
+{
+     assert(string != NULL);
+     memcpy(string,
+            buf->items + buf->beg,
+            buf->size - buf->beg);
+     memcpy(string + buf->size - buf->beg,
+            buf->items,
+            buf->beg);
+}
+
 /* struct for holding an output */
 typedef struct output
 {
@@ -80,32 +91,6 @@ Output *new_output(int strlen, struct output *mate)
      return new;
 }
 
-typedef struct outputs
-{
-     int length;
-     int max_length;
-     struct output **items;
-} Outputs;
-
-Outputs new_outputs()
-{
-     struct outputs array;
-     array.length = 0;
-     array.max_length = ARR_INIT_SIZE;
-     array.items = malloc(sizeof(array.items) * array.max_length);
-     return array;
-}
-
-void add_output(Outputs *array, Output *new)
-{
-     if (array->length >= array->max_length) {
-          array->max_length <<= 1;
-          array->items = realloc(array->items,
-                                 sizeof(array->items) * array->max_length);
-     }
-     array->items[array->length++] = new;
-}
-
 /* Aho-Corasick algorithm for multiple string/dictionary search */
 
 /* this implementation only supports characters ACGT (case insensitive) */
@@ -120,7 +105,8 @@ int b2i(char c)
 typedef struct node
 {
      int state;
-     char *output;
+     char *string;
+     Output *output;
      struct node *next[4];
 } Node;
 
@@ -135,6 +121,7 @@ Node *new_Node(int state)
 {
      Node *new = malloc(sizeof(struct node));
      new->state = state;
+     new->string = NULL;
      new->output = NULL;
      new->next[A] = NULL;
      new->next[C] = NULL;
@@ -195,7 +182,24 @@ void go_add_string(NodeArray *go, char *string)
           }
           current = current->next[basei];
      }
-     current->output = string;
+     current->string = string;
+}
+
+void go_add_Output(NodeArray *go, Output *output)
+{
+     int i, basei;
+     Node *root, *current;
+     root = go->states[0];
+
+     for (current = root, i = 0; output->string[i] != '\0'; ++i) {
+          basei = b2i(output->string[i]);
+          if (current->next[basei] == NULL) {
+               current->next[basei] = new_Node(go->length);
+               add_Node(go, current->next[basei]);
+          }
+          current = current->next[basei];
+     }
+     current->output = output;
 }
 
 NodeArray build_go(char **strings, int n)
@@ -239,14 +243,14 @@ int *build_failures(NodeArray *go)
                     }
                     failures[s] = go->states[t]->next[i]->state;
                     ol = go->states[s]->output ?
-                         strlen(go->states[s]->output) :
+                         strlen(go->states[s]->output->string) :
                          0;
                     nol = go->states[t]->next[i]->output ?
-                         strlen(go->states[t]->next[i]->output) :
+                         strlen(go->states[t]->next[i]->output->string) :
                          0;
                     if (nol > ol) {
-                         go->states[s]->output =
-                              go->states[t]->next[i]->output;
+                         go->states[s]->output->string =
+                              go->states[t]->next[i]->output->string;
                     }
                }
           }
@@ -272,20 +276,19 @@ void search_all(char *text, int len, NodeArray go, int *failures)
           if (current->next[basei] != NULL) {
                current = current->next[basei];
           }
-          if (current->output != NULL) {
-               printf("%d, %s\n", i, current->output);
+          if (current->string != NULL) {
+               printf("%d, %s\n", i, current->string);
           }
      }
 }
 
-void put_flanks_in_go(NodeArray *go, Outputs *out,
-                      FILE *fasta, int flank_len)
+void put_flanks_in_go(NodeArray *go, FILE *fasta, int flank_len)
 {
      int c, skip = 0;
-     char b;
-     struct buffer buf;
+     struct buffer ring_buf;
+     Output *fwd_output, *rev_output;
 
-     init_buffer(&buf, flank_len);
+     init_buffer(&ring_buf, flank_len);
 
      while ((c = getc(fasta)) != EOF) {
           if (c == '\n' && skip) {
@@ -295,82 +298,49 @@ void put_flanks_in_go(NodeArray *go, Outputs *out,
                continue;
           }
           else if (c == '>') {
-               buffer_clear(&buf);
+               buffer_clear(&ring_buf);
                skip = 1;
           }
           else if (toupper(c) == 'N') {
-               buffer_skip_nulls(&buf);
-               while ((b = buffer_get(&buf)) != 0){
-                    putchar(b);
-               }
-               printf("\n");
+               fwd_output = new_output(flank_len, NULL);
+               buffer_to_string(&ring_buf, fwd_output->string);
+               buffer_clear(&ring_buf);
+               go_add_Output(go, fwd_output);
                while (toupper(c = getc(fasta)) == 'N');
-               buffer_put(&buf, c);
+               buffer_put(&ring_buf, c);
           }
           else {
-               buffer_put(&buf, c);
+               buffer_put(&ring_buf, c);
           }
      }
 
-     free_buffer(&buf);
+     free_buffer(&ring_buf);
 }
 
 int main(int argc, char *argv[])
 {
-     /* int res; */
-     /* int pos = 0; */
-
-     /* unsigned char text[] = "ifoisjfoejfoiewj"; */
-     /* unsigned char search[] = "foi"; */
-     /* int tlen = sizeof(text) - 1; */
-     /* int slen = sizeof(search) - 1; */
-
-     /* char new_text[] = "ggatcgatgagatatcgcgctagctagtgagctcgcgctaaagctcgatacgggatcgatcgatcgcgagatcgcgggag"; */
-     /* char *strings[] = {"cgtagctga", "cgtagctagg", "acgtagct", "aagctcgat", "ctcgatacgg", "cgtaggctag"}; */
-
-     NodeArray go;
-     Outputs out;
+     NodeArray go = init_go();
      int *failures;
 
-     FILE *fasta;
+     FILE *contigs, *scaffolds;
 
-     /* exhaustive search */
-     /* while (pos <= tlen - slen) { */
-     /*      res = QS(search, slen, text + pos, tlen - pos); */
-     /*      if (res < 0) { */
-     /*           break; */
-     /*      } */
-     /*      printf("%d\n", pos + res); */
-     /*      pos += res + slen; */
-     /* } */
-
-     /* go = build_go(strings, 6); */
-
-     out = new_outputs();
-
-     fasta = fopen(argv[1], "r");
-     if (fasta) {
-          put_flanks_in_go(&go, &out, fasta, FLANK_LEN);
+     if (argc < 3) {
+          printf("usage: %s contigs scaffolds\n", argv[0]);
+          return 1;
      }
+
+     contigs = fopen(argv[1], "r");
+     if (contigs) {
+          put_flanks_in_go(&go, contigs, FLANK_LEN);
+     }
+     finish_go(&go);
+
+     failures = build_failures(&go);
      
-     /* failures = build_failures(&go); */
-
-     /* printf("%d\n", go.length); */
-     /* for (pos = 0; pos < go.length; ++pos) { */
-     /*      printf("this state: %d\n", go.states[pos]->state); */
-     /*      if (go.states[pos]->output) { */
-     /*           printf("output: %s\n", go.states[pos]->output); */
-     /*      } */
-     /*      else { */
-     /*           printf("output: %s\n", "none"); */
-     /*      } */
-     /*      if (go.states[pos]->next[A]) { */
-     /*           printf("next state A: %d\n", go.states[pos]->next[A]->state); */
-     /*      } */
-     /* } */
-
-     /* printf("%s\n", new_text); */
-     /* search_all(new_text, sizeof(new_text), go, failures); */
+     scaffolds = fopen(argv[2], "r");
+     if (scaffolds) {
+          
+     }
 
      return 0;
 }
