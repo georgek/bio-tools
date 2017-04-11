@@ -282,6 +282,46 @@ void search_all(char *text, int len, NodeArray go, int *failures)
      }
 }
 
+void search_all_in_file(FILE *fasta, NodeArray *go, int *failures)
+{
+     int i = 1, c, skip = 0, basei;
+     Node *current = go->states[0];
+
+     while ((c = getc(fasta)) != EOF) {
+          if (c == '\n' && skip) {
+               i++;
+               skip = 0;
+          }
+          else if (skip) {
+               continue;
+          }
+          else if (c == '>') {
+               current = go->states[0];
+               skip = 1;
+          }
+          else switch (toupper(c)) {
+               case 'A':
+               case 'C':
+               case 'G':
+               case 'T':
+                    basei = b2i(c);
+                    while (current->next[basei] == NULL) {
+                         current = go->states[failures[current->state]];
+                    }
+                    if (current->next[basei] != NULL) {
+                         current = current->next[basei];
+                    }
+                    if (current->output != NULL) {
+                         printf("%d, %s\n", i, current->output->string);
+                    }
+                    break;
+               case '\n':
+                    i++;
+                    break;
+               }
+     }
+}
+
 void put_flanks_in_go(NodeArray *go, FILE *fasta, int flank_len)
 {
      int c, skip = 0;
@@ -301,17 +341,21 @@ void put_flanks_in_go(NodeArray *go, FILE *fasta, int flank_len)
                buffer_clear(&ring_buf);
                skip = 1;
           }
-          else if (toupper(c) == 'N') {
-               fwd_output = new_output(flank_len, NULL);
-               buffer_to_string(&ring_buf, fwd_output->string);
-               buffer_clear(&ring_buf);
-               go_add_Output(go, fwd_output);
-               while (toupper(c = getc(fasta)) == 'N');
-               buffer_put(&ring_buf, c);
-          }
-          else {
-               buffer_put(&ring_buf, c);
-          }
+          else switch (toupper(c)) {
+               case 'N':
+                    fwd_output = new_output(flank_len, NULL);
+                    buffer_to_string(&ring_buf, fwd_output->string);
+                    buffer_clear(&ring_buf);
+                    printf("%s\n", fwd_output->string);
+                    go_add_Output(go, fwd_output);
+                    while (toupper(c = getc(fasta)) == 'N' || c == '\n');
+               case 'A':
+               case 'C':
+               case 'G':
+               case 'T':
+                    buffer_put(&ring_buf, c);
+                    break;
+               }
      }
 
      free_buffer(&ring_buf);
@@ -339,7 +383,7 @@ int main(int argc, char *argv[])
      
      scaffolds = fopen(argv[2], "r");
      if (scaffolds) {
-          
+          search_all_in_file(scaffolds, &go, failures);
      }
 
      return 0;
