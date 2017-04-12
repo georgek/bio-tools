@@ -71,6 +71,7 @@ void buffer_to_string(struct buffer *buf, char *string)
      memcpy(string + buf->size - buf->beg,
             buf->items,
             buf->beg);
+     string[buf->size] = '\0';
 }
 
 char complement(char c)
@@ -314,8 +315,8 @@ int *build_failures(NodeArray *go)
                          strlen(go->states[t]->next[i]->output->string) :
                          0;
                     if (nol > ol) {
-                         go->states[s]->output->string =
-                              go->states[t]->next[i]->output->string;
+                         go->states[s]->output =
+                              go->states[t]->next[i]->output;
                     }
                }
           }
