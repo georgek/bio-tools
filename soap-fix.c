@@ -6,6 +6,7 @@
 
 #define FLANK_LEN 60
 #define ARR_INIT_SIZE 8
+#define BUF_INIT 120
 
 /* a ring buffer */
 struct buffer
@@ -72,21 +73,85 @@ void buffer_to_string(struct buffer *buf, char *string)
             buf->beg);
 }
 
+char complement(char c)
+{
+     switch (c) {
+     case 'A':
+          return 'T';
+     case 'C':
+          return 'G';
+     case 'G':
+          return 'C';
+     case 'T':
+          return 'A';
+
+     case 'a':
+          return 't';
+     case 'c':
+          return 'g';
+     case 'g':
+          return 'c';
+     case 't':
+          return 'a';
+     default:
+          return c;
+     }
+}
+
+void reverse_complement(char *string, unsigned len)
+{
+     int i;
+     for (i = 0, len = len -1; len > i; ++i, --len) {
+          *(string+i) ^= *(string+len);
+          *(string+len) ^= *(string+i);
+          *(string+i) ^= *(string+len);
+          *(string+i) = complement(*(string+i));
+          *(string+len) = complement(*(string+len));
+     }
+}
+
+/* we do run-length encoding on the ambiguous base stretches */
+struct run
+{
+     size_t length, max_length;
+     union
+     {
+          char *multi;
+          char single;
+     } base;
+     union
+     {
+          unsigned *multi;
+          unsigned single;
+     } run_length;
+};
+
+void free_run(struct run *run)
+{
+     if (run->max_length > 1) {
+          free(run->base.multi);
+          free(run->run_length.multi);
+     }
+}
+
+enum dir {fwd, rev};
 /* struct for holding an output */
 typedef struct output
 {
+     enum dir direction;
      char *string;  /* the complete output string */
-     int num_n;     /* number of Ns following this string */
+     struct run *amb_bases; /* the bases between this and the mate */
      int seen;      /* has this or the mate been seen? */
      struct output *mate; /* the reverse complement of this */
 } Output;
 
-Output *new_output(int strlen, struct output *mate)
+Output *new_output(int strlen, enum dir direction, struct output *mate)
 {
      struct output *new = malloc(sizeof(struct output));
      new->string = malloc(strlen+1);
      new->string[strlen] = '\0';
      new->seen = 0;
+     new->direction = direction;
      new->mate = mate;
      return new;
 }
@@ -322,11 +387,105 @@ void search_all_in_file(FILE *fasta, NodeArray *go, int *failures)
      }
 }
 
-void put_flanks_in_go(NodeArray *go, FILE *fasta, int flank_len)
+char *new_ambiguous_and_next_flank(char init_char, FILE *fasta,
+                                   char *flank, unsigned flank_len)
+{
+     int c, n_nonamb = 0;
+     size_t amb_len, amb_max_len = BUF_INIT;
+
+     char *ambiguous = malloc(amb_max_len + 1);
+     ambiguous[amb_max_len] = '\0';
+     ambiguous[0] = init_char;
+     amb_len = 1;
+
+     while ((c = getc(fasta)) != EOF) {
+          switch (toupper(c)) {
+          case '\n':
+               continue;
+          case 'A':
+          case 'C':
+          case 'G':
+          case 'T':
+               n_nonamb++;
+               if (n_nonamb >= flank_len) {
+                    /* one character of the flank isn't in the string yet */
+                    strncpy(flank,
+                            ambiguous + (amb_len - flank_len + 1),
+                            flank_len - 1);
+                    flank[flank_len-1] = c;
+                    ambiguous[amb_len - flank_len + 1] = '\0';
+                    return ambiguous;
+               }
+          default:
+               if (amb_len >= amb_max_len) {
+                    amb_max_len <<= 1;
+                    ambiguous = realloc(ambiguous, amb_max_len + 1);
+                    ambiguous[amb_max_len] ='\0';
+               }
+               ambiguous[amb_len++] = c;
+          }
+     }
+     free(ambiguous);
+     return NULL;
+}
+
+struct run *new_run_encoding(char *string)
+{
+     char last_char;
+     unsigned last_length;
+     struct run *new = malloc(sizeof(struct run));
+     printf("%s\n", string);
+     new->length = 1;
+     new->max_length = 1;
+     new->base.single = *string;
+     new->run_length.single = 1;
+     last_char = *string;
+     string++;
+     for ( ; *string != '\0'; ++string) {
+          if (last_char == *string) {
+               new->run_length.single++;
+          }
+          else {
+               last_length = new->run_length.single;
+               new->max_length = ARR_INIT_SIZE;
+               new->length = 1;
+               new->base.multi = malloc(new->max_length);
+               new->run_length.multi = malloc(new->max_length);
+               new->base.multi[0] = last_char;
+               new->run_length.multi[0] = last_length;
+               for ( ; *string != '\0'; ++string) {
+                    if (last_char == *string) {
+                         new->run_length.multi[new->length-1]++;
+                    }
+                    else {
+                         if (new->length >= new->max_length) {
+                              new->max_length <<= 1;
+                              new->base.multi = realloc(new->base.multi,
+                                                        new->max_length);
+                              new->run_length.multi =
+                                   realloc(new->run_length.multi,
+                                           sizeof(size_t) * new->max_length);
+                         }
+                         new->base.multi[new->length] = *string;
+                         new->run_length.multi[new->length] = 1;
+                         new->length++;
+                         last_char = *string;
+                    }
+               }
+               break;
+          }
+     }
+
+     return new;
+}
+
+void put_flanks_in_go(NodeArray *go, FILE *fasta, unsigned flank_len)
 {
      int c, skip = 0;
      struct buffer ring_buf;
      Output *fwd_output, *rev_output;
+     char *ambiguous;
+     int i;
 
      init_buffer(&ring_buf, flank_len);
 
@@ -342,17 +501,40 @@ void put_flanks_in_go(NodeArray *go, FILE *fasta, int flank_len)
                skip = 1;
           }
           else switch (toupper(c)) {
-               case 'N':
-                    fwd_output = new_output(flank_len, NULL);
-                    buffer_to_string(&ring_buf, fwd_output->string);
-                    buffer_clear(&ring_buf);
-                    printf("%s\n", fwd_output->string);
-                    go_add_Output(go, fwd_output);
-                    while (toupper(c = getc(fasta)) == 'N' || c == '\n');
+               case '\n':
+                    continue;
                case 'A':
                case 'C':
                case 'G':
                case 'T':
+                    buffer_put(&ring_buf, c);
+                    break;
+               default:
+                    fwd_output = new_output(flank_len, fwd, NULL);
+                    rev_output = new_output(flank_len, rev, fwd_output);
+                    fwd_output->mate = rev_output;
+                    buffer_to_string(&ring_buf, fwd_output->string);
+                    buffer_clear(&ring_buf);
+                    ambiguous = new_ambiguous_and_next_flank(
+                         c, fasta, rev_output->string, flank_len);
+                    reverse_complement(rev_output->string, flank_len);
+                    fwd_output->amb_bases = new_run_encoding(ambiguous);
+                    rev_output->amb_bases = fwd_output->amb_bases;
+                    if (fwd_output->amb_bases->length == 1) {
+                         printf("single: %c, %u\n",
+                                fwd_output->amb_bases->base.single,
+                                fwd_output->amb_bases->run_length.single);
+                    }
+                    else {
+                         for (i = 0; i < fwd_output->amb_bases->length; ++i) {
+                              printf("multi: %c, %u\n",
+                                     fwd_output->amb_bases->base.multi[i],
+                                     fwd_output->amb_bases->run_length.multi[i]);
+                         }
+                    }
+                    go_add_Output(go, fwd_output);
+                    go_add_Output(go, rev_output);
+                    free(ambiguous);
                     buffer_put(&ring_buf, c);
                     break;
                }
