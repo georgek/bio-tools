@@ -25,7 +25,7 @@ for line in fasta:
 
 for name in names:
     segments = sequences[name].upper().replace('N', ' ').split()
-    for segment, n in zip(segments, range(len(segments))):
-        sys.stdout.write(">{:s}-{:d}\n".format(name, n))
+    for n, segment in enumerate(segments):
+        sys.stdout.write(">{:s}-{:d}\n".format(name, n+1))
         sys.stdout.write("{:s}\n".format(segment))
 
