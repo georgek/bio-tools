@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+thisdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PATH=${thisdir}:$PATH
+
+if [[ $# < 6 ]]; then
+    echo "usage: $0 original_cov new_cov old_read_len new_read_len R1 R2"
+    exit
+fi
+
+original_cov=$1
+new_cov=$2
+old_read_len=$3
+new_read_len=$4
+R1=$5
+R2=$6
+
+seed=${RANDOM}
+
+for m in ${R1} ${R2}; do
+    zcat ${m} \
+        | fastq-subsample ${original_cov} ${new_cov} ${old_read_len} ${new_read_len} ${seed} \
+        | pigz -p 8 \
+               > $(basename ${m} .fastq.gz)-${new_cov}x-${new_read_len}bp-${seed}.fastq.gz
+done
