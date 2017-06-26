@@ -8,6 +8,7 @@ import re
 import numpy as np
 from collections import namedtuple
 import warnings
+import itertools
 
 default_fmt_str = r"Mean: %a, median: %e, mode: %o, min: %m, max: %M, stdev: %s\n"
 default_fmt_str_group = r"%g\tMean: %a, median: %e, mode: %o, min: %m, max: %M, stdev: %s\n"
@@ -78,7 +79,7 @@ def formatstr(string, width, defaultwidth):
 
 
 # define available statistics
-Stat = namedtuple("Stat", "name function")
+Stat = namedtuple("Stat", ["name", "function"])
 stats = {'n': Stat("count", nrows),
          'a': Stat("arithmetic mean", np.mean),
          'h': Stat("geometric mean", gmean),
@@ -166,26 +167,24 @@ else:
 fmt_re = re.compile("%([0-9]+)?(?:.([0-9]+))?([" + statstypes + "])({[0-9]+})?")
 chunks = fmt_re.split(fmt_str)
 strs,wdts,decs,typs,cols = [],[],[],[],[]
-strs.append(chunks[0])
-i=1
-while i+4 < len(chunks):
-    wdts.append(chunks[i])
-    decs.append(chunks[i+1])
-    typs.append(chunks[i+2])
-    if chunks[i+2] == "g":
+strs.append(chunks.pop(0))
+for wdt,dec,typ,col,st in itertools.izip(*[iter(chunks)]*5):
+    wdts.append(wdt)
+    decs.append(dec)
+    typs.append(typ)
+    if typ == "g":
         cols.append(None)
-    elif chunks[i+3] is None:
+    elif col is None:
         cols.append(args.column)
     else:
-        cols.append(int(chunks[i+3][1:-1]))
-    strs.append(chunks[i+4])
-    i += 5
+        cols.append(int(col[1:-1]))
+    strs.append(st)
 assert len(wdts) == len(decs) == len(typs) == len(cols) == len(strs)-1
 
 ucols = [x-1 for x in list(set(cols)) if x is not None]
 locs = {}
-for i in range(len(ucols)):
-    locs[ucols[i]] = i
+for i, ucol in enumerate(ucols):
+    locs[ucol] = i
 
 if args.file is None:
     input_file = sys.stdin
@@ -211,25 +210,25 @@ else:
     indarrays = [np.arange(0,matrix.shape[0])]
 
 for group,indarray in zip(ugroups,indarrays):
-    for i in range(len(wdts)):
-        sys.stdout.write(strs[i])
+    for wdt,dec,typ,col,st in itertools.izip(wdts,decs,typs,cols,strs):
+        sys.stdout.write(st)
 
-        if typs[i] == "g":
+        if typ == "g":
             val = group
-        elif typs[i] not in stats:
-            sys.stderr.write("Unrecognised type {:s}.".format(typs[i]))
+        elif typ not in stats:
+            sys.stderr.write("Unrecognised type {:s}.".format(typ))
         else:
-            values = matrix[indarray,locs[cols[i] - 1]].flatten()
+            values = matrix[indarray,locs[col - 1]].flatten()
             if len(values) == 0:
                 val = 0
             else:
-                val = stats[typs[i]].function(values)
+                val = stats[typ].function(values)
 
         if isinstance(val, float):
-            sys.stdout.write(formatfloat(val, wdts[i], decs[i], args.seps,
+            sys.stdout.write(formatfloat(val, wdt, dec, args.seps,
                                          args.width, args.precision))
         elif isinstance(val, int):
-            sys.stdout.write(formatint(val, wdts[i], args.seps, args.width))
+            sys.stdout.write(formatint(val, wdt, args.seps, args.width))
         elif isinstance(val, str):
-            sys.stdout.write(formatstr(val, wdts[i], args.width))
-    sys.stdout.write(strs[i+1])
+            sys.stdout.write(formatstr(val, wdt, args.width))
+    sys.stdout.write(strs[-1])
