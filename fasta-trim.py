@@ -28,7 +28,7 @@ trim_file = open(args.trim_file)
 beginnings = {}
 ends = {}
 for line in trim_file:
-    [name,beg,end] = line.split()
+    name,beg,end = line.split()
     if (args.split):
         if name not in beginnings:
             beginnings[name] = [int(beg)]

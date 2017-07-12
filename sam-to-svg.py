@@ -20,7 +20,7 @@ def cigar_to_aln_len(cigar):
 def parse_opts(opt):
     opts = {}
     for text_opt in opt.split():
-        [name,typ,value] = text_opt.split(":")
+        name,typ,value = text_opt.split(":")
         if typ == "A":
             opts[name] = value
         elif typ == "i":
