@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 import argparse
@@ -16,6 +16,8 @@ parser = argparse.ArgumentParser(
     description="Adds missing values in a sequential column.")
 parser.add_argument("input", type=str, default=sys.stdin, nargs="?",
                     help="Input file.")
+parser.add_argument("-n", "--numcols", type=pos_int, default=1,
+                    help="Number of columns in file.")
 parser.add_argument("-c", "--column", type=pos_int, default=1,
                     help="Number of column to make sequential.")
 parser.add_argument("-d", "--delimiter", type=str, default=None,
@@ -36,13 +38,19 @@ def main():
         out_delimiter = args.delimiter
 
     expected = args.starting_value
+    bcols = out_delimiter.join([args.empty]*(args.column-1) + [""])
+    acols = out_delimiter.join([""] + [args.empty]*(args.numcols-args.column))
+
     for line in args.input:
         cols = line.split(args.delimiter)
         found = int(cols[args.column-1])
-        if found != expected:
+        if found > expected:
             for x in range(expected, found):
-                vals = [args.empty]*(args.column-1) + [str(x)] + [args.empty]*(len(cols)-args.column)
-                sys.stdout.write("{:s}\n".format(out_delimiter.join(vals)))
+                sys.stdout.write(bcols)
+                sys.stdout.write(str(x))
+                sys.stdout.write(acols)
+                sys.stdout.write("\n")
+            expected = found
         sys.stdout.write(line)
         expected += 1
 
