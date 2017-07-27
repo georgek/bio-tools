@@ -164,10 +164,15 @@ if args.delimiter:
 else:
     dl = None
 
+# get bits of format string as chunks. The chunks will contain the important
+# parts of the format string interleaved like so: string, width, decimal,
+# type, column, string, width... where "string" is the bit between any
+# statistic
 fmt_re = re.compile("%([0-9]+)?(?:.([0-9]+))?([" + statstypes + "])({[0-9]+})?")
 chunks = fmt_re.split(fmt_str)
 strs,wdts,decs,typs,cols = [],[],[],[],[]
 strs.append(chunks.pop(0))
+# deinterleave the rest using five iterators
 for wdt,dec,typ,col,st in itertools.izip(*[iter(chunks)]*5):
     wdts.append(wdt)
     decs.append(dec)
