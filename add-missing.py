@@ -38,17 +38,17 @@ def main():
         out_delimiter = args.delimiter
 
     expected = args.starting_value
-    bcols = out_delimiter.join([args.empty]*(args.column-1) + [""])
-    acols = out_delimiter.join([""] + [args.empty]*(args.numcols-args.column))
+    before_cols = out_delimiter.join([args.empty]*(args.column-1) + [""])
+    after_cols = out_delimiter.join([""] + [args.empty]*(args.numcols-args.column))
 
     for line in args.input:
         cols = line.split(args.delimiter)
         found = int(cols[args.column-1])
         if found > expected:
             for x in range(expected, found):
-                sys.stdout.write(bcols)
+                sys.stdout.write(before_cols)
                 sys.stdout.write(str(x))
-                sys.stdout.write(acols)
+                sys.stdout.write(after_cols)
                 sys.stdout.write("\n")
             expected = found
         sys.stdout.write(line)
