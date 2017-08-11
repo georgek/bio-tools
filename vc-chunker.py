@@ -33,7 +33,7 @@ def get_args():
     return parser.parse_args()
 
 
-def get_sbatch_boilerplate(extra_options):
+def get_sbatch_boilerplate(extra_options=None):
     boilerplate = """#!/bin/bash
 #SBATCH -p tgac-medium # partition (queue)
 #SBATCH -N 1 # number of nodes
