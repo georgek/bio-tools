@@ -21,6 +21,9 @@ def get_args():
 def main(min_quality=DEFAULT_MIN_QUALITY,
          phred=DEFAULT_PHRED):
     for line in sys.stdin:
+        if line[0] == "@":
+            sys.stdout.write(line)
+            continue
         qname,flag,rname,pos,mapq,cigar,rnext,pnext,tlen,seq,qual,rest = line.split(maxsplit=11)
         base_quals = [ord(qchar) - phred for qchar in qual]
         avg_quality = sum(base_quals)/len(base_quals)
