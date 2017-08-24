@@ -22,12 +22,16 @@ args = parser.parse_args()
 big = open(args.big_file)
 little = open(args.little_file)
 
+n = 0
 for little_line in little:
     little_split = little_line.split()
     for big_line in big:
+        n += 1
+        sys.stderr.write("\r{:d} read".format(n))
         big_split = big_line.split()
         if big_split[0] == little_split[0]:
             sys.stdout.write("{:s}\t{:s}\t{:s}\n".format(big_split[0],
                                                          "\t".join(big_split[1:]),
                                                          "\t".join(little_split[1:])))
             break
+sys.stderr.write("\n")
