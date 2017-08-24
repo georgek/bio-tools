@@ -4,6 +4,7 @@
 # agree with the base in the reference
 
 import sys
+import collections
 
 comp = {'a':'t', 'c':'g', 'g':'c', 't':'a', 'u':'a',
         'n':'n',
@@ -44,6 +45,39 @@ def read_fasta(fasta):
             seqs[name] += line.strip()
     return seqs
 
+Operation = collections.namedtuple('Operation', ['length', 'op'])
+def qpos2roffset(qpos, cigar):
+    operations = []
+    current_number = ""
+    total_length = 0
+    for c in cigar:
+        if c in "0123456789":
+            current_number += c
+        elif c in "MIDNSHP=X":
+            total_length += int(current_number)
+            operations.append(Operation(length=int(current_number), op=c))
+            current_number = ""
+        else:
+            current_number = ""
+    operations = collections.deque(operations)
+    currpos = 1
+    curqpos = 1
+    curlength,curop = operations[0]
+    while curqpos < qpos and len(operations) > 0:
+        if curlength == 0:
+            operations.popleft()
+            curlength,curop = operations[0]
+        if curop in "M=X":
+            currpos += 1
+            curqpos += 1
+        elif curop in "IS":
+            curqpos += 1
+        elif curop in "DN":
+            currpos += 1
+        curlength -= 1
+    return currpos - 1
+
+
 if len(sys.argv) < 4:
     print "usage: prog sam seq ref"
     sys.exit()
@@ -52,16 +86,16 @@ samf = open(sys.argv[1])
 seqf = open(sys.argv[2])
 reff = open(sys.argv[3])
 
-seqs = read_fasta(seqf)
-seqf.close()
+# seqs = read_fasta(seqf)
+# seqf.close()
 
 alns = {}
 for line in samf:
-    [qname,flag,rname,pos,mapq,cigar,rnext,pnext,tlen,seq,qual,opt] = line.split(None, 11)
+    qname,flag,rname,pos,mapq,cigar,rnext,pnext,tlen,seq,qual,opt = line.split(None, 11)
     if rname in alns:
-        alns[rname].append((qname,pos,flag))
+        alns[rname].append((qname,pos,flag,cigar))
     else:
-        alns[rname] = [(qname,pos,flag)]
+        alns[rname] = [(qname,pos,flag,cigar)]
 
 currentname = ""
 currentseq = ""
@@ -74,17 +108,19 @@ for line in reff:
     else:
         currentseq = line[:-1]
     if currentname in alns:
-        for (qname,pos,flag) in alns[currentname]:
-            [name,ambpos] = qname.split(":")
+        for qname,pos,flag,cigar in alns[currentname]:
+            name,ambpos,ambbase = qname.split(":")
             pos = int(pos)
             ambpos = int(ambpos)
+            ambbase = ambbase.lower()
             flag = int(flag)
-            ambbase = seqs[qname][ambpos].lower()
+            # ambbase = seqs[qname][ambpos].lower()
             # print "amb: ", ambbase
+            offset = qpos2roffset(ambpos, cigar)
             if flag & 0x10:
-                refbase = reverse_complement(currentseq[pos + ambpos - 1])
+                refbase = reverse_complement(currentseq[pos + offset - 1])
             else:
-                refbase = currentseq[pos + ambpos - 1].lower()
+                refbase = currentseq[pos + offset - 1].lower()
             # print "seq: ", refbase
             if basecodes[refbase] & basecodes[ambbase]:
                 # print "yes"
