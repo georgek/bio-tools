@@ -1,45 +1,73 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # gets a sequence from an indexed fasta file
 
 import sys
 import argparse
 import re
+from signal import signal, SIGPIPE, SIG_DFL
+signal(SIGPIPE,SIG_DFL)
 
-# ----- command line parsing -----
-parser = argparse.ArgumentParser(
-    description="Gets a sequence from an indexed fasta file.")
-parser.add_argument("fasta_file", type=str, help="FASTA file.")
-parser.add_argument("regex", type=str, help="Regular expression to match sequence name.")
-parser.add_argument("-v", "--invert-match", dest="invert", action="store_true",
-                    help="Invert the sense of matching, to select non-matching sequences.")
-parser.set_defaults(invert=False)
+def get_args():
+    parser = argparse.ArgumentParser(
+        description="Gets a sequence from an indexed fasta file.")
+    parser.add_argument("fasta_file_name", type=str,
+                        help="FASTA file.", metavar="fasta_file")
+    parser.add_argument("pattern", type=str,
+                        help="Regular expression to match sequence name.")
+    parser.add_argument("-v", "--invert_match", dest="invert", action="store_true",
+                        help="Invert the sense of matching, to select non-matching sequences.")
+    parser.set_defaults(invert=False)
 
-args = parser.parse_args()
-# ----- end command line parsing -----
+    return parser.parse_args()
 
-try:
-    fasta_file = open(args.fasta_file)
-except:
-    sys.stderr.write(args.fasta_file + " not found.\n")
-    exit()
-try:
-    index_file = open(args.fasta_file + ".fai")
-except:
-    sys.stderr.write("Index file for " + args.fasta_file + " not found.\n"
-                     "Use samtools faidx " + args.fasta_file + "\n")
-    exit()
 
-regex = re.compile(args.regex)
+def get_seq_from_offset(fasta_file, offset):
+    fasta_file.seek(offset)
+    seq_lines = []
+    for seq_line in fasta_file:
+        if seq_line[0] == ">":
+            break
+        else:
+            seq_lines.append(seq_line.strip())
+    return "".join(seq_lines)
 
-for line in index_file:
-    [name, length, offset, linebases, linewidth] = line.split()
-    [length, offset, linebases, linewidth] = [int(n) for n in [length, offset, linebases, linewidth]]
-    if bool(re.search(regex, name)) ^ bool(args.invert):
-        sys.stdout.write(">{:s}\n".format(name))
-        fasta_file.seek(offset)
-        for seq_line in fasta_file:
-            if seq_line[0] == ">":
-                break
-            else:
-                sys.stdout.write(seq_line)
+
+def get_seqs(fasta_file,
+             fasta_index,
+             pattern,
+             invert=False):
+    regex = re.compile(pattern)
+
+    seqs = {}
+    for line in fasta_index:
+        name, length, offset, linebases, linewidth = line.split()
+        length, offset, linebases, linewidth = (
+            int(n) for n in [length, offset, linebases, linewidth])
+        if bool(re.search(regex, name)) ^ bool(invert):
+            seqs[name] = get_seq_from_offset(fasta_file, offset)
+    return seqs
+
+
+def main(fasta_file_name,
+         pattern,
+         invert=False):
+    try:
+        fasta_file = open(fasta_file_name)
+    except:
+        sys.stderr.write(fasta_file_name + " not found.\n")
+        sys.exit(1)
+    try:
+        index_file = open(fasta_file_name + ".fai")
+    except:
+        sys.stderr.write("Index file for " + fasta_file_name + " not found.\n"
+                         "Use samtools faidx " + fasta_file_name + "\n")
+        sys.exit(2)
+    seqs = get_seqs(fasta_file, index_file, pattern, invert)
+    for name, seq in seqs.items():
+        sys.stdout.write(">{:s}\n{:s}\n".format(name, seq))
+
+
+if __name__ == '__main__':
+    args = get_args()
+    main(**vars(args))
