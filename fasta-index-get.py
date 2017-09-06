@@ -65,39 +65,14 @@ length)."""
         return seq.replace("\n", "").replace("\r", "")
 
 
-def get_next_seq(fasta_file,
-                 fasta_index,
-                 regex,
-                 invert=False):
-    """Get next matching sequence in the index file, or None. This function
-continues to read from the current read pointer of fasta_index and as a side
-effect advances the read pointer past the matching sequence. Thus continually
-calling this function until it returns None will find every matching
-sequence."""
+def get_names_and_seqs(fasta_file, fasta_index, pattern, invert=False):
+    """Get all names and seqs which match the regular expression pattern."""
+    regex = re.compile(pattern)
     for line in fasta_index:
         name, length, offset, linebases, linewidth = line.split()
-        if bool(re.search(regex, name)) ^ bool(invert):
+        if bool(re.search(regex,name)) ^ bool(invert):
             faidx_entry = FaidxEntry(length, offset, linebases, linewidth)
-            return name, get_seq(fasta_file, faidx_entry)
-    else:
-        return None,None
-
-
-def get_seqs(fasta_file,
-             fasta_index,
-             pattern,
-             invert=False):
-    """Get a dictionary of all matching sequences in the fasta_index (starting
-from the current read pointer)."""
-    regex = re.compile(pattern)
-    seqs = {}
-    while True:
-        name, seq = get_next_seq(fasta_file, fasta_index, regex, invert)
-        if name is not None:
-            seqs[name] = seq
-        else:
-            break
-    return seqs
+            yield name, get_seq(fasta_file, faidx_entry)
 
 
 def open_fasta_and_index(fasta_file_name):
@@ -122,13 +97,8 @@ def main(fasta_file_name,
         fasta_file, index_file = open_fasta_and_index(fasta_file_name)
     except OSError:
         sys.exit(1)
-    regex = re.compile(pattern)
-    while True:
-        name, seq = get_next_seq(fasta_file, index_file, regex, invert)
-        if name is not None:
-            sys.stdout.write(">{:s}\n{:s}\n".format(name, seq))
-        else:
-            break
+    for name, seq in get_names_and_seqs(fasta_file, index_file, pattern, invert):
+        sys.stdout.write(">{:s}\n{:s}\n".format(name, seq))
 
 
 if __name__ == '__main__':
