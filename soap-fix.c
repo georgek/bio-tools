@@ -343,7 +343,7 @@ void search_all(char *text, int len, NodeArray go, int *failures)
                current = current->next[basei];
           }
           if (current->string != NULL) {
-               printf("%d, %s\n", i, current->string);
+               printf("found: %d, %s\n", i, current->string);
           }
      }
 }
@@ -378,7 +378,7 @@ void search_all_in_file(FILE *fasta, NodeArray *go, int *failures)
                          current = current->next[basei];
                     }
                     if (current->output != NULL) {
-                         printf("%d, %s\n", i, current->output->string);
+                         printf("found: %d, %s\n", i, current->output->string);
                     }
                     break;
                case '\n':
@@ -389,7 +389,9 @@ void search_all_in_file(FILE *fasta, NodeArray *go, int *failures)
 }
 
 char *new_ambiguous_and_next_flank(char init_char, FILE *fasta,
-                                   char *flank, unsigned flank_len)
+                                   char *flank,
+                                   unsigned expected_flank_len,
+                                   unsigned *actual_flank_len)
 {
      int c, n_nonamb = 0;
      size_t amb_len, amb_max_len = BUF_INIT;
@@ -408,26 +410,40 @@ char *new_ambiguous_and_next_flank(char init_char, FILE *fasta,
           case 'G':
           case 'T':
                n_nonamb++;
-               if (n_nonamb >= flank_len) {
-                    /* one character of the flank isn't in the string yet */
-                    strncpy(flank,
-                            ambiguous + (amb_len - flank_len + 1),
-                            flank_len - 1);
-                    flank[flank_len-1] = c;
-                    ambiguous[amb_len - flank_len + 1] = '\0';
-                    return ambiguous;
+               if (n_nonamb >= expected_flank_len) {
+                    goto end;
                }
+               break;
           default:
-               if (amb_len >= amb_max_len) {
-                    amb_max_len <<= 1;
-                    ambiguous = realloc(ambiguous, amb_max_len + 1);
-                    ambiguous[amb_max_len] ='\0';
-               }
-               ambiguous[amb_len++] = c;
+               n_nonamb = 0;
           }
+          if (amb_len >= amb_max_len) {
+               amb_max_len <<= 1;
+               ambiguous = realloc(ambiguous, amb_max_len + 1);
+               ambiguous[amb_max_len] ='\0';
+          }
+          ambiguous[amb_len++] = c;
      }
-     free(ambiguous);
-     return NULL;
+end:
+     /* there may be the last nonamb character left, or we reached EOF */
+     /* printf("amblen %d nonamb %d, string %s\n", amb_len, n_nonamb, ambiguous); */
+     if (c != EOF) {
+          strncpy(flank,
+                  ambiguous + (amb_len - n_nonamb + 1),
+                  n_nonamb - 1);
+          flank[n_nonamb-1] = c;
+          *actual_flank_len = n_nonamb;
+          ambiguous[amb_len - n_nonamb + 1] = '\0';
+     }
+     else {
+          strncpy(flank,
+                  ambiguous + (amb_len - n_nonamb),
+                  n_nonamb);
+          flank[n_nonamb] = '\0';
+          *actual_flank_len = n_nonamb;
+          ambiguous[amb_len - n_nonamb] = '\0';
+     }
+     return ambiguous;
 }
 
 struct run *new_run_encoding(char *string)
@@ -435,7 +451,7 @@ struct run *new_run_encoding(char *string)
      char last_char;
      unsigned last_length;
      struct run *new = malloc(sizeof(struct run));
-     printf("%s\n", string);
+     /* printf("string to encode: %s\n", string); */
      new->length = 1;
      new->max_length = 1;
      new->base.single = *string;
@@ -451,7 +467,7 @@ struct run *new_run_encoding(char *string)
                new->max_length = ARR_INIT_SIZE;
                new->length = 1;
                new->base.multi = malloc(new->max_length);
-               new->run_length.multi = malloc(new->max_length);
+               new->run_length.multi = malloc(sizeof(unsigned) * new->max_length);
                new->base.multi[0] = last_char;
                new->run_length.multi[0] = last_length;
                for ( ; *string != '\0'; ++string) {
@@ -465,7 +481,7 @@ struct run *new_run_encoding(char *string)
                                                         new->max_length);
                               new->run_length.multi =
                                    realloc(new->run_length.multi,
-                                           sizeof(size_t) * new->max_length);
+                                           sizeof(unsigned) * new->max_length);
                          }
                          new->base.multi[new->length] = *string;
                          new->run_length.multi[new->length] = 1;
@@ -480,15 +496,16 @@ struct run *new_run_encoding(char *string)
      return new;
 }
 
-void put_flanks_in_go(NodeArray *go, FILE *fasta, unsigned flank_len)
+void put_flanks_in_go(NodeArray *go, FILE *fasta, unsigned expected_flank_len)
 {
      int c, skip = 0;
      struct buffer ring_buf;
      Output *fwd_output, *rev_output;
      char *ambiguous;
      int i;
+     unsigned actual_flank_len = 0;
 
-     init_buffer(&ring_buf, flank_len);
+     init_buffer(&ring_buf, expected_flank_len);
 
      while ((c = getc(fasta)) != EOF) {
           if (c == '\n' && skip) {
@@ -511,28 +528,31 @@ void put_flanks_in_go(NodeArray *go, FILE *fasta, unsigned flank_len)
                     buffer_put(&ring_buf, c);
                     break;
                default:
-                    fwd_output = new_output(flank_len, fwd, NULL);
-                    rev_output = new_output(flank_len, rev, fwd_output);
+                    fwd_output = new_output(expected_flank_len, fwd, NULL);
+                    rev_output = new_output(expected_flank_len, rev, fwd_output);
                     fwd_output->mate = rev_output;
+                    buffer_skip_nulls(&ring_buf);
                     buffer_to_string(&ring_buf, fwd_output->string);
+                    /* printf("output string: %s\n", fwd_output->string); */
                     buffer_clear(&ring_buf);
                     ambiguous = new_ambiguous_and_next_flank(
-                         c, fasta, rev_output->string, flank_len);
-                    reverse_complement(rev_output->string, flank_len);
+                         c, fasta, rev_output->string,
+                         expected_flank_len, &actual_flank_len);
+                    reverse_complement(rev_output->string, actual_flank_len);
                     fwd_output->amb_bases = new_run_encoding(ambiguous);
                     rev_output->amb_bases = fwd_output->amb_bases;
-                    if (fwd_output->amb_bases->length == 1) {
-                         printf("single: %c, %u\n",
-                                fwd_output->amb_bases->base.single,
-                                fwd_output->amb_bases->run_length.single);
-                    }
-                    else {
-                         for (i = 0; i < fwd_output->amb_bases->length; ++i) {
-                              printf("multi: %c, %u\n",
-                                     fwd_output->amb_bases->base.multi[i],
-                                     fwd_output->amb_bases->run_length.multi[i]);
-                         }
-                    }
+                    /* if (fwd_output->amb_bases->length == 1) { */
+                    /*      printf("single: %c, %u\n", */
+                    /*             fwd_output->amb_bases->base.single, */
+                    /*             fwd_output->amb_bases->run_length.single); */
+                    /* } */
+                    /* else { */
+                    /*      for (i = 0; i < fwd_output->amb_bases->length; ++i) { */
+                    /*           printf("multi: %c, %u\n", */
+                    /*                  fwd_output->amb_bases->base.multi[i], */
+                    /*                  fwd_output->amb_bases->run_length.multi[i]); */
+                    /*      } */
+                    /* } */
                     go_add_Output(go, fwd_output);
                     go_add_Output(go, rev_output);
                     free(ambiguous);
