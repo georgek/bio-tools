@@ -8,10 +8,12 @@ DEFAULT_OUTPUT_DIR = "."
 DEFAULT_OUTPUT_PREFIX=None
 DEFAULT_CHUNK_SIZE = 30000000
 DEFAULT_MIN_QUALITY = 0
+DEFAULT_FORCE=False
 
 
 def get_args():
     parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         description="Make jobs for variant calling on an alignment with split regions.")
     parser.add_argument("ref_file", type=str,
                         help="Reference FASTA file.")
@@ -28,7 +30,7 @@ def get_args():
 
     parser.add_argument("-f", "--force", dest="force", action="store_true",
                         help="Overwrite existing output files.")
-    parser.set_defaults(force=False)
+    parser.set_defaults(force=DEFAULT_FORCE)
 
     return parser.parse_args()
 
@@ -91,7 +93,7 @@ def main(ref_file,
          output_prefix=DEFAULT_OUTPUT_PREFIX,
          chunk_size=DEFAULT_CHUNK_SIZE,
          min_quality=DEFAULT_MIN_QUALITY,
-         force=False):
+         force=DEFAULT_FORCE):
     try:
         faidx_f = open(ref_file + ".fai")
     except FileNotFoundError as e:
