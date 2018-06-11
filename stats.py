@@ -8,10 +8,19 @@ import re
 import numpy as np
 from collections import namedtuple
 import warnings
-import itertools
 
-default_fmt_str = r"Mean: %a, median: %e, mode: %o, min: %m, max: %M, stdev: %s\n"
-default_fmt_str_group = r"%g\tMean: %a, median: %e, mode: %o, min: %m, max: %M, stdev: %s\n"
+DEFAULT_FMT_STR \
+    = "Mean: %a, median: %e, mode: %o, min: %m, max: %M, stdev: %s\\n"
+DEFAULT_FMT_STR_GROUP \
+    = "%g\\tMean: %a, median: %e, mode: %o, min: %m, max: %M, stdev: %s\\n"
+DEFAULT_COLUMN = 1
+DEFAULT_DELIMITER = None
+DEFAULT_DEFAULT = 0.0
+DEFAULT_GROUP_BY = None
+DEFAULT_FORMAT = None
+DEFAULT_SEPS = False
+DEFAULT_PRECISION = 2
+DEFAULT_WIDTH = 1
 
 
 def mode(array):
@@ -52,6 +61,96 @@ def nrows(matrix):
     return matrix.shape[0]
 
 
+Stat = namedtuple("Stat", ["name", "function"])
+STATS = {'n': Stat("count", nrows),
+         'a': Stat("arithmetic mean", np.mean),
+         'h': Stat("geometric mean", gmean),
+         'e': Stat("median", np.median),
+         'o': Stat("mode", mode),
+         'm': Stat("minimum", np.amin),
+         'M': Stat("maximum", np.amax),
+         'v': Stat("variance", np.var),
+         's': Stat("standard deviation", np.std),
+         'S': Stat("sum", np.sum),
+         'N': Stat("N50", N50),
+         'g': Stat("group name", None)}
+
+
+def stats_help(stats):
+    """Return help string for given stats dictionary."""
+    statshelp = ""
+    for stat in stats:
+        statshelp += "   {:s} : {:s},\n".format(stat, stats[stat].name)
+    statshelp = statshelp[:-2] + '.\n'
+    return statshelp
+
+
+def stats_regexp(stats):
+    """Returns string for use in regular expression to match any stats type."""
+    return ''.join(stats.keys())
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        prog="stats",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=f"""
+Calculates stats from an input file, if given, or standard input and prints
+according to format string.
+
+The format string is a bit like a C format string. Format specifiers are
+subsequences beginning with % and are replaced with statistics calculated from
+the standard input. A format specifier follows this prototype:
+
+%[width][.precision]specifier[{{column}}]
+
+where the specifier character is one of the following:
+
+{stats_help(STATS)}
+
+The width and precision control the amount of padding and number of decimal
+places, respectively.  The column specifies which column of the input the
+statistic is calculated from. By default it is the column given by -c.
+
+The default format string when -g is not used is:
+{DEFAULT_FMT_STR}
+
+and when -g is used:
+{DEFAULT_FMT_STR_GROUP}"""
+    )
+    parser.add_argument("input_file_name", type=str, nargs='?',
+                        help="Input file. If not given, "
+                        "read from standard input.")
+    parser.add_argument("-c", "--column", type=int,
+                        default=DEFAULT_COLUMN,
+                        help="The column number.")
+    parser.add_argument("-d", "--delimiter", type=str,
+                        default=DEFAULT_DELIMITER,
+                        help="Column delmiter.")
+    parser.add_argument("--default", type=float,
+                        default=DEFAULT_DEFAULT,
+                        help="Default value for missing values.")
+    parser.add_argument("-g", "--group_by",
+                        default=DEFAULT_GROUP_BY, type=int,
+                        help="Column to group statistics by "
+                        "(not compatible with reading from stdin).")
+    parser.add_argument("-f", "--format_str",
+                        default=DEFAULT_FORMAT, type=str,
+                        help="Format string.")
+    parser.add_argument("-t", "--thousand_separators",
+                        dest="seps",
+                        action="store_true",
+                        help="Print numbers with thousand separators.")
+    parser.set_defaults(seps=DEFAULT_SEPS)
+    parser.add_argument("-p", "--precision", default=DEFAULT_PRECISION,
+                        help="Default precision of floating point numbers.")
+    parser.add_argument("-w", "--width", default=DEFAULT_WIDTH,
+                        help="Default width of floating point numbers.")
+
+    args = parser.parse_args()
+    return args, parser.format_usage()
+
+
 def formatfloat(number, width, precision, separators,
                 defaultwidth, defaultprecision):
     if separators:
@@ -78,162 +177,117 @@ def formatstr(string, width, defaultwidth):
                       width if width else defaultwidth)
 
 
-# define available statistics
-Stat = namedtuple("Stat", ["name", "function"])
-stats = {'n': Stat("count", nrows),
-         'a': Stat("arithmetic mean", np.mean),
-         'h': Stat("geometric mean", gmean),
-         'e': Stat("median", np.median),
-         'o': Stat("mode", mode),
-         'm': Stat("minimum", np.amin),
-         'M': Stat("maximum", np.amax),
-         'v': Stat("variance", np.var),
-         's': Stat("standard deviation", np.std),
-         'S': Stat("sum", np.sum),
-         'N': Stat("N50", N50),
-         'g': Stat("group name", None)}
-statstypes = ''.join(stats.keys())
-statshelp = ""
-for stat in stats:
-    statshelp += "   {:s} : {:s},\n".format(stat, stats[stat].name)
-statshelp = statshelp[:-2] + '.\n'
+def main(input_file_name,
+         column=DEFAULT_COLUMN,
+         delimiter=DEFAULT_DELIMITER,
+         default=DEFAULT_DEFAULT,
+         group_by=DEFAULT_GROUP_BY,
+         format_str=DEFAULT_FORMAT,
+         seps=DEFAULT_SEPS,
+         precision=DEFAULT_PRECISION,
+         width=DEFAULT_WIDTH):
 
-# ----- command line parsing -----
-parser = argparse.ArgumentParser(
-    prog="stats",
-    formatter_class=argparse.RawDescriptionHelpFormatter,
-    description=
-    """Calculates stats from an input file, if given, or standard input and prints
-according to format string.
+    if (input_file_name is None or input_file_name == "-") \
+       and group_by is not None:
+        sys.exit("Can't use groups when reading from standard input.")
 
-The format  string is  a bit  like a  C format  string. Format  specifiers are
-subsequences beginning with % and are replaced with statistics calculated from
-the standard input. A format specifier follows this prototype:
-
-%[width][.precision]specifier[{column}]
-
-where the specifier character is one of the following:
-""" + statshelp + """
-The width  and precision control the  amount of padding and  number of decimal
-places,  respectively.  The  column specifies  which column  of the  input the
-statistic is calculated from. By default it is the column given by -c.
-
-The default format string when -g is not used is:
-""" + default_fmt_str + """
-
-and when -g is used:
-""" + default_fmt_str_group
-)
-parser.add_argument("file", type=str, nargs='?',
-                    help="Input file. If not given, read from standard input.")
-parser.add_argument("-c", "--column", type=int, default=1,
-                    help="The column number.")
-parser.add_argument("-d", "--delimiter", default=None,
-                    help="Column delmiter.")
-parser.add_argument("--default", type=float, default=0.0,
-                    help="Default value for missing values.")
-
-parser.add_argument("-g", "--group_by", default=None, type=int,
-                    help="Column to group statistics by (not compatible with reading from stdin).")
-
-parser.add_argument("-f", "--format", type=str,
-                    help="Format string.")
-parser.add_argument("-t", "--thousand_separators", dest="seps", action="store_true",
-                    help="Print numbers with thousand separators.")
-parser.set_defaults(seps=False)
-parser.add_argument("-p", "--precision", default=2,
-                    help="Default precision of floating point numbers.")
-parser.add_argument("-w", "--width", default=1,
-                    help="Default width of floating point numbers.")
-
-args = parser.parse_args()
-# ----- end command line parsing -----
-
-if args.file is None and args.group_by is not None:
-    sys.exit("Can't use groups when reading from standard input.")
-
-if args.format:
-    fmt_str = args.format.decode("string_escape")
-elif args.group_by:
-    fmt_str = default_fmt_str_group.decode("string_escape")
-else:
-    fmt_str = default_fmt_str.decode("string_escape")
-
-if args.delimiter:
-    dl = args.delimiter.decode("string_escape")
-else:
-    dl = None
-
-# get bits of format string as chunks. The chunks will contain the important
-# parts of the format string interleaved like so: string, width, decimal,
-# type, column, string, width... where "string" is the bit between any
-# statistic
-fmt_re = re.compile("%([0-9]+)?(?:.([0-9]+))?([" + statstypes + "])({[0-9]+})?")
-chunks = fmt_re.split(fmt_str)
-strs,wdts,decs,typs,cols = [],[],[],[],[]
-strs.append(chunks.pop(0))
-# deinterleave the rest using five iterators
-for wdt,dec,typ,col,st in itertools.izip(*[iter(chunks)]*5):
-    wdts.append(wdt)
-    decs.append(dec)
-    typs.append(typ)
-    if typ == "g":
-        cols.append(None)
-    elif col is None:
-        cols.append(args.column)
-    else:
-        cols.append(int(col[1:-1]))
-    strs.append(st)
-assert len(wdts) == len(decs) == len(typs) == len(cols) == len(strs)-1
-
-ucols = [x-1 for x in list(set(cols)) if x is not None]
-locs = {}
-for i, ucol in enumerate(ucols):
-    locs[ucol] = i
-
-if args.file is None:
-    input_file = sys.stdin
-else:
-    input_file = open(args.file)
-
-try:
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        matrix = np.loadtxt(input_file, usecols=ucols, ndmin=2, delimiter=dl)
-except IndexError as e:
-    sys.exit("Specified column not available.")
-except ValueError as e:
-    sys.exit(e)
-
-if args.group_by:
-    input_file.seek(0)
-    groupcol = np.loadtxt(input_file, usecols=[args.group_by-1], dtype=object)
-    ugroups = np.unique(groupcol)
-    indarrays = [np.where(groupcol == group) for group in ugroups]
-else:
-    ugroups = ["default"]
-    indarrays = [np.arange(0,matrix.shape[0])]
-
-for group,indarray in zip(ugroups,indarrays):
-    for wdt,dec,typ,col,st in itertools.izip(wdts,decs,typs,cols,strs):
-        sys.stdout.write(st)
-
-        if typ == "g":
-            val = group
-        elif typ not in stats:
-            sys.stderr.write("Unrecognised type {:s}.".format(typ))
+    if format_str is None:
+        if group_by:
+            format_str = DEFAULT_FMT_STR_GROUP
         else:
-            values = matrix[indarray,locs[col - 1]].flatten()
-            if len(values) == 0:
-                val = 0
-            else:
-                val = stats[typ].function(values)
+            format_str = DEFAULT_FMT_STR
 
-        if isinstance(val, float):
-            sys.stdout.write(formatfloat(val, wdt, dec, args.seps,
-                                         args.width, args.precision))
-        elif isinstance(val, int):
-            sys.stdout.write(formatint(val, wdt, args.seps, args.width))
-        elif isinstance(val, str):
-            sys.stdout.write(formatstr(val, wdt, args.width))
-    sys.stdout.write(strs[-1])
+    format_str = bytes(format_str, "utf-8").decode("unicode_escape")
+
+    if delimiter:
+        dl = bytes(delimiter, "utf-8").decode("unicode_escape")
+    else:
+        dl = None
+
+    # get bits of format string as chunks. The chunks will contain the
+    # important parts of the format string interleaved like so: string, width,
+    # decimal, type, column, string, width... where "string" is the bit
+    # between any statistic
+    fmt_re = re.compile("%([0-9]+)?(?:.([0-9]+))?(["
+                        + stats_regexp(STATS)
+                        + "])({[0-9]+})?")
+    chunks = fmt_re.split(format_str)
+    strs, wdts, decs, typs, cols = [], [], [], [], []
+    strs.append(chunks.pop(0))
+    # deinterleave the rest using five iterators
+    for wdt, dec, typ, col, st in zip(*[iter(chunks)]*5):
+        wdts.append(wdt)
+        decs.append(dec)
+        typs.append(typ)
+        if typ == "g":
+            cols.append(None)
+        elif col is None:
+            cols.append(column)
+        else:
+            cols.append(int(col[1:-1]))
+        strs.append(st)
+    assert len(wdts) == len(decs) == len(typs) == len(cols) == len(strs)-1
+
+    ucols = [x-1 for x in list(set(cols)) if x is not None]
+    locs = {}
+    for i, ucol in enumerate(ucols):
+        locs[ucol] = i
+
+    if input_file_name is None or input_file_name == "-":
+        input_file = sys.stdin
+    else:
+        input_file = open(input_file_name)
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            matrix = np.loadtxt(input_file, usecols=ucols,
+                                ndmin=2, delimiter=dl)
+    except IndexError as e:
+        sys.exit("Specified column not available.")
+    except ValueError as e:
+        sys.exit(e)
+
+    if group_by:
+        input_file.seek(0)
+        groupcol = np.loadtxt(input_file,
+                              usecols=[group_by-1],
+                              dtype=object)
+        ugroups = np.unique(groupcol)
+        indarrays = [np.where(groupcol == group) for group in ugroups]
+    else:
+        ugroups = ["default"]
+        indarrays = [np.arange(0, matrix.shape[0])]
+
+    for group, indarray in zip(ugroups, indarrays):
+        for wdt, dec, typ, col, st in zip(wdts, decs, typs, cols, strs):
+            sys.stdout.write(st)
+
+            if typ == "g":
+                val = group
+            elif typ not in STATS:
+                sys.stderr.write("Unrecognised type {:s}.".format(typ))
+            else:
+                values = matrix[indarray, locs[col - 1]].flatten()
+                if len(values) == 0:
+                    val = 0
+                else:
+                    val = STATS[typ].function(values)
+
+            if isinstance(val, float):
+                sys.stdout.write(formatfloat(val, wdt, dec, seps,
+                                             width, precision))
+            elif isinstance(val, int):
+                sys.stdout.write(formatint(val, wdt, seps, width))
+            elif isinstance(val, str):
+                sys.stdout.write(formatstr(val, wdt, width))
+        sys.stdout.write(strs[-1])
+
+
+if __name__ == '__main__':
+    args, usage = parse_args()
+    if (args.input_file_name is None or args.input_file_name == "-") \
+       and sys.stdin.isatty():
+        sys.stderr.write(usage)
+        sys.exit(1)
+    main(**vars(args))
